@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Automation PM Dashboard</title>
+<meta name="description" content="Open-source project tracking dashboard for automation PMs: roadmap, hours burn, RAID log and schedule variance. Demo data is fictional.">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F4F6F6;
+  --surface: #FFFFFF;
+  --surface2: #EDF1F1;
+  --border: rgba(15,46,44,0.09);
+  --border-md: rgba(15,46,44,0.16);
+  --text: #16202A;
+  --text-2: #4B5563;
+  --text-3: #8A94A0;
+  --accent: #0F766E;
+  --green: #166534; --green-bg: #DCFCE7;
+  --amber: #92400E; --amber-bg: #FEF3C7;
+  --red: #9F1239; --red-bg: #FFE4E6;
+  --blue: #1E40AF; --blue-bg: #DBEAFE;
+  --violet: #5B21B6; --violet-bg: #EDE9FE;
+  --gray-bg: #E5E7EB; --gray-txt: #374151;
+  --emph-bg: #0F2E2C; --emph-text: #FFFFFF; --emph-sub: rgba(255,255,255,.55);
+  --sidebar: #0F2E2C;
+  --today: #F97316;
+  --radius: 8px; --radius-lg: 12px;
+  --shadow: 0 1px 2px rgba(15,46,44,0.06), 0 1px 3px rgba(15,46,44,0.05);
+  --mono: 'JetBrains Mono', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1414; --surface: #142222; --surface2: #1A2B2B;
+    --border: rgba(255,255,255,0.08); --border-md: rgba(255,255,255,0.15);
+    --text: #E6EEEE; --text-2: #A7B4B4; --text-3: #6F7F7F; --accent: #2DD4BF;
+    --green: #86EFAC; --green-bg: rgba(22,101,52,.32);
+    --amber: #FCD34D; --amber-bg: rgba(146,64,14,.32);
+    --red: #FDA4AF; --red-bg: rgba(159,18,57,.32);
+    --blue: #93C5FD; --blue-bg: rgba(30,64,175,.32);
+    --violet: #C4B5FD; --violet-bg: rgba(91,33,182,.32);
+    --gray-bg: rgba(255,255,255,.08); --gray-txt: #CBD5D5;
+    --emph-bg: #134E4A; --sidebar: #061010;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1414; --surface: #142222; --surface2: #1A2B2B;
+  --border: rgba(255,255,255,0.08); --border-md: rgba(255,255,255,0.15);
+  --text: #E6EEEE; --text-2: #A7B4B4; --text-3: #6F7F7F; --accent: #2DD4BF;
+  --green: #86EFAC; --green-bg: rgba(22,101,52,.32);
+  --amber: #FCD34D; --amber-bg: rgba(146,64,14,.32);
+  --red: #FDA4AF; --red-bg: rgba(159,18,57,.32);
+  --blue: #93C5FD; --blue-bg: rgba(30,64,175,.32);
+  --violet: #C4B5FD; --violet-bg: rgba(91,33,182,.32);
+  --gray-bg: rgba(255,255,255,.08); --gray-txt: #CBD5D5;
+  --emph-bg: #134E4A; --sidebar: #061010;
+  --shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
+
+/* ─── LAYOUT ─── */
+.shell { display: flex; min-height: 100vh; }
+.sidebar { width: 236px; flex-shrink: 0; background: var(--sidebar); color:#fff; display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; z-index:100; overflow-y:auto; overflow-x:hidden; transition: width .25s ease; }
+.sidebar.collapsed { width: 56px; }
+.main { margin-left: 236px; padding: 32px 32px 80px; flex:1; min-width:0; transition: margin-left .25s ease; }
+.main.expanded { margin-left: 56px; }
+.sb-toggle { background:none; border:none; color:rgba(255,255,255,.5); cursor:pointer; padding:4px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sb-toggle:hover { background:rgba(255,255,255,.1); color:#fff; }
+.sidebar.collapsed .sb-toggle svg { transform:rotate(180deg); }
+.sb-logo { padding: 20px 16px 16px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:flex-start; justify-content:space-between; gap:8px; min-height:72px; }
+.sb-logo-text { flex:1; overflow:hidden; }
+.sidebar.collapsed .sb-logo { padding:16px 0; justify-content:center; align-items:center; }
+.sidebar.collapsed .sb-logo-text, .sidebar.collapsed .sb-section, .sidebar.collapsed .sb-label { display:none; }
+.sidebar.collapsed .sb-btn { justify-content:center; padding:9px 0; }
+.sb-logo .eyebrow { font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#5EEAD4; margin-bottom:5px; }
+.sb-logo .brand { font-size:16px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1.25; }
+.sb-logo .tagline { font-size:11px; color:rgba(255,255,255,.45); margin-top:4px; }
+.sb-section { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.4); padding:16px 16px 5px; }
+.sb-btn { background:none; border:none; color:rgba(255,255,255,.7); font-family:inherit; font-size:13px; padding:9px 12px; cursor:pointer; display:flex; align-items:center; gap:10px; border-radius:8px; margin:2px 8px; width:calc(100% - 16px); text-align:left; }
+.sb-btn:hover { background:rgba(255,255,255,.08); color:#fff; }
+.sb-btn.active { background:rgba(94,234,212,.16); color:#fff; font-weight:600; }
+.sb-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+.sb-sub { font-size:10.5px; color:rgba(255,255,255,.4); display:block; line-height:1.3; }
+.sb-footer { margin-top:auto; padding:14px 16px; border-top:1px solid rgba(255,255,255,.08); font-size:11px; color:rgba(255,255,255,.4); }
+.sidebar.collapsed .sb-footer { display:none; }
+
+/* ─── TOPBAR ─── */
+.topbar { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; gap:16px; flex-wrap:wrap; }
+.topbar-title { font-size:22px; font-weight:700; letter-spacing:-.03em; }
+.topbar-sub { font-size:13px; color:var(--text-3); margin-top:2px; }
+.demo-note { font-size:11px; color:var(--text-2); background:var(--surface); border:1px solid var(--border); padding:5px 11px; border-radius:999px; }
+
+/* ─── BADGES ─── */
+.badge { display:inline-flex; align-items:center; font-size:11px; font-weight:600; padding:3px 9px; border-radius:6px; white-space:nowrap; }
+.b-ok { background:var(--green-bg); color:var(--green); }
+.b-warn { background:var(--amber-bg); color:var(--amber); }
+.b-danger { background:var(--red-bg); color:var(--red); }
+.b-info { background:var(--blue-bg); color:var(--blue); }
+.b-gray { background:var(--gray-bg); color:var(--gray-txt); }
+.b-violet { background:var(--violet-bg); color:var(--violet); }
+
+/* ─── METRICS ─── */
+.metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:24px; }
+.mcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:14px 16px; box-shadow:var(--shadow); }
+.mcard-label { font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+.mcard-val { font-size:26px; font-weight:700; letter-spacing:-.04em; line-height:1; }
+.mcard-sub { font-size:11px; color:var(--text-3); margin-top:4px; }
+.mcard.dark { background:var(--emph-bg); border-color:var(--emph-bg); }
+.mcard.dark .mcard-label, .mcard.dark .mcard-sub { color:var(--emph-sub); }
+.mcard.dark .mcard-val { color:var(--emph-text); }
+
+.pane { display:none; }
+.pane.active { display:block; }
+.sec-title { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); margin-bottom:12px; }
+.section-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow-x:auto; box-shadow:var(--shadow); }
+
+/* ─── PROJECT CARD ─── */
+.cards-grid { display:flex; flex-direction:column; gap:20px; }
+.section-sep { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); border-top:1px solid var(--border); padding:14px 4px 2px; margin-top:4px; }
+.pcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column; }
+.pcard-head { padding:16px 20px 14px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.pcard-head-left { flex:1; min-width:220px; }
+.pcard-head-right { display:flex; align-items:center; gap:8px; flex-shrink:0; flex-wrap:wrap; }
+.pcard-name { font-size:16px; font-weight:700; letter-spacing:-.02em; line-height:1.25; }
+.pcard-account { font-size:11px; color:var(--text-3); font-family:var(--mono); margin-top:3px; }
+.flt-label { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); margin-right:4px; }
+.flt-chip-bar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.flt-chip-bar:empty { display:none; }
+.flt-chip { font-size:12px; font-weight:500; font-family:inherit; padding:5px 12px; border:1px solid var(--border); border-radius:999px; background:var(--surface); color:var(--text-2); cursor:pointer; }
+.flt-chip:hover { border-color:var(--border-md); color:var(--text); }
+.flt-chip.active { border-color:var(--accent); color:var(--accent); font-weight:700; }
+.pcard-body { display:flex; flex-direction:column; flex:1; }
+.pcard-main { min-width:0; overflow:hidden; display:flex; flex-direction:column; }
+.card-tab-pane { display:none; padding:18px 20px; flex:1; }
+.card-tab-pane.active { display:flex; flex-direction:column; overflow-y:auto; }
+.pcard-side { background:var(--surface2); min-width:0; display:flex; flex-direction:column; border-top:1px solid var(--border-md); }
+.pcard-side-fixed { padding:12px 16px; border-top:1px solid var(--border-md); }
+.comments-card { border:1px solid var(--border); border-radius:var(--radius); margin:16px 20px; overflow:hidden; background:var(--surface); }
+.comments-card-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; cursor:pointer; user-select:none; gap:8px; }
+.comments-card-header-left { display:flex; align-items:center; gap:8px; min-width:0; }
+.comments-card-chevron { width:13px; height:13px; color:var(--text-3); transition:transform .2s; flex-shrink:0; }
+.comments-card.open .comments-card-chevron { transform:rotate(90deg); }
+.comments-count { font-size:11px; color:var(--text-3); background:var(--surface2); padding:1px 8px; border-radius:999px; }
+.comments-card-body { display:none; border-top:1px solid var(--border); padding:14px; max-height:350px; overflow-y:auto; }
+.comments-card.open .comments-card-body { display:block; }
+
+/* ─── TABS ─── */
+.card-tabs { display:flex; gap:2px; padding:0 20px; border-bottom:1px solid var(--border); background:var(--surface2); flex-wrap:wrap; }
+.card-tab { font-size:12px; padding:9px 12px; cursor:pointer; border:none; background:none; color:var(--text-3); border-bottom:2px solid transparent; font-family:inherit; white-space:nowrap; }
+.card-tab:hover { color:var(--text-2); }
+.card-tab.active { color:var(--text); font-weight:600; border-bottom-color:var(--accent); }
+
+/* ─── GANTT ─── */
+.gantt-wrap { overflow-x:auto; margin-bottom:2px; scroll-behavior:smooth; }
+.gantt-card { border:1px solid var(--border); border-radius:var(--radius-lg); padding:14px; }
+.roadmap-avance-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start; }
+@media(max-width:1100px){ .roadmap-avance-grid{grid-template-columns:1fr;} }
+.gantt-table { border-collapse:collapse; }
+.gantt-table th { font-size:10px; font-weight:500; color:var(--text-3); text-align:center; padding:5px 1px; white-space:nowrap; border-bottom:1px solid var(--border); }
+.gantt-table th.stage-col { text-align:left; min-width:110px; font-weight:700; font-size:11px; color:var(--text-2); padding-left:0; position:sticky; left:0; background:var(--surface); z-index:6; }
+.gantt-table td { padding:3px 1px; vertical-align:middle; }
+.gantt-table td.stage-name { font-size:13px; font-weight:500; color:var(--text-2); white-space:nowrap; padding-right:10px; position:sticky; left:0; background:var(--surface); z-index:6; }
+.gantt-day-header { min-width:18px; max-width:18px; font-size:8px !important; cursor:default; position:relative; }
+.gantt-day-header[data-tip]:hover::after { content:attr(data-tip); position:absolute; top:-28px; left:50%; transform:translateX(-50%); background:#16202A; color:#fff; font-size:10px; padding:3px 7px; border-radius:4px; white-space:nowrap; z-index:10; pointer-events:none; }
+.gantt-ctrl-btn { font-size:11px; padding:3px 10px; background:var(--surface2); color:var(--text-2); border:1px solid var(--border); border-radius:6px; cursor:pointer; font-family:inherit; }
+.gantt-ctrl-btn:hover { border-color:var(--border-md); color:var(--text); }
+
+/* ─── HOURS TAB ─── */
+.hs-summary-bar { display:flex; align-items:flex-start; gap:24px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:14px; flex-wrap:wrap; }
+.hs-summary-main { flex:1; min-width:200px; }
+.hs-summary-total { font-size:20px; font-weight:700; letter-spacing:-0.3px; }
+.hs-summary-total span { font-size:13px; font-weight:500; color:var(--text-2); margin-left:8px; }
+.hs-prog-outer { height:6px; background:var(--border); border-radius:4px; margin:8px 0 4px; overflow:hidden; }
+.hs-prog-inner { height:100%; border-radius:4px; background:#16A34A; }
+.hs-prog-inner.warn { background:#D97706; }
+.hs-prog-inner.danger { background:#DC2626; }
+.hs-summary-meta { font-size:11.5px; color:var(--text-3); }
+.hs-alerts { display:flex; flex-direction:column; gap:5px; min-width:180px; }
+.hs-alert { display:flex; align-items:center; gap:6px; font-size:11.5px; }
+.hs-alert.ok { color:var(--green); } .hs-alert.warn { color:var(--amber); } .hs-alert.red { color:var(--red); }
+.hs-etapas-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+.hs-pill { display:flex; align-items:center; gap:5px; background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:11.5px; color:var(--text-2); }
+.hs-pill .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.hs-pill .pct { font-weight:700; }
+.pct.ok { color:var(--green); } .pct.warn { color:var(--amber); } .pct.over { color:var(--red); } .pct.gray { color:var(--text-3); }
+.hs-roles-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:8px; margin-bottom:14px; }
+.hs-rol-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.hs-rol-card.excedido { border-color:var(--red-bg); background:var(--red-bg); }
+.hs-rol-card.no-estimado { border-color:var(--blue-bg); background:var(--blue-bg); }
+.hs-rol-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px 8px; cursor:pointer; user-select:none; }
+.hs-rol-header-left { display:flex; align-items:center; gap:6px; flex:1; min-width:0; }
+.hs-chevron { width:13px; height:13px; color:var(--text-3); transition:transform .2s; flex-shrink:0; }
+.hs-rol-card.open .hs-chevron { transform:rotate(90deg); }
+.hs-rol-name { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hs-tag { font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; }
+.hs-bok { background:var(--green-bg); color:var(--green); } .hs-bwarn { background:var(--amber-bg); color:var(--amber); }
+.hs-bover { background:var(--red-bg); color:var(--red); } .hs-bnoest { background:var(--blue-bg); color:var(--blue); }
+.hs-rol-pct { font-size:16px; font-weight:700; flex-shrink:0; margin-left:8px; }
+.hs-rol-subline { font-size:11px; color:var(--text-3); padding:0 12px 8px; }
+.hs-rol-bar-wrap { padding:0 12px 8px; }
+.hs-rol-bar-bg { height:4px; background:var(--surface2); border-radius:3px; overflow:hidden; }
+.hs-rol-bar-fill { height:100%; border-radius:3px; }
+.hs-rol-detail { display:none; border-top:1px solid var(--border); padding:8px 12px 10px; }
+.hs-rol-card.open .hs-rol-detail { display:block; }
+.hs-dtable { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:8px; }
+.hs-dtable th { font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; text-align:right; padding:3px 5px 3px 0; border-bottom:1px solid var(--border); }
+.hs-dtable th:first-child, .hs-dtable td:first-child { text-align:left; }
+.hs-dtable td { text-align:right; padding:3px 5px 3px 0; color:var(--text-2); font-variant-numeric:tabular-nums; }
+.hs-members-lbl { font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+.hs-member { display:flex; justify-content:space-between; font-size:11px; color:var(--text-2); }
+.hs-member strong { font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
+.matrix-table { width:100%; border-collapse:collapse; font-size:11px; }
+.matrix-table th { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3); padding:6px 8px; text-align:center; border-bottom:2px solid var(--border-md); }
+.matrix-table th:first-child, .matrix-table td:first-child { text-align:left; }
+.matrix-table td { padding:5px 8px; border-bottom:1px solid var(--border); text-align:center; font-family:var(--mono); }
+.matrix-table td:first-child { font-family:inherit; font-weight:600; color:var(--text-2); }
+.mx-ok { color:var(--green); } .mx-warn { color:var(--amber); } .mx-danger { color:var(--red); } .mx-na { color:var(--text-3); }
+
+/* ─── PROGRESS TABLE ─── */
+.av-wrap { display:flex; flex-direction:column; border:1px solid var(--border); border-radius:var(--radius); overflow-x:auto; margin-bottom:14px; }
+.avt-header-row, .avt-row { display:grid; grid-template-columns:120px 90px 190px 140px; gap:10px; padding:7px 14px; align-items:center; }
+.avt-header-row { background:var(--surface2); font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.07em; }
+.avt-row { border-top:1px solid var(--border); }
+.av-col-etapa { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; }
+.av-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.avt-col-hs, .avt-col-dv, .avt-col-rm, .avt-dv-view { display:flex; align-items:center; gap:7px; }
+.av-pct-lbl { font-size:11px; color:var(--text-3); font-family:var(--mono); }
+.av-dv-edit { display:none; align-items:center; gap:6px; flex-wrap:wrap; }
+
+/* ─── LINKS / RUNS / DOCS ─── */
+.side-link-btn { display:flex; align-items:center; gap:8px; padding:6px 8px; background:var(--surface); border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); font-size:11px; }
+.side-link-btn:hover { border-color:var(--accent); color:var(--accent); }
+.side-link-icon { width:20px; height:20px; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:8px; font-family:var(--mono); font-weight:700; }
+.side-link-name { flex:1; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.links-grid { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+.links-hd { display:flex; justify-content:flex-end; margin-bottom:6px; }
+.links-edit { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.links-edit > div:first-child { align-self:stretch; }
+.links-edit-row { display:grid; grid-template-columns:130px minmax(0,1fr) minmax(0,2fr) auto; gap:6px; align-items:center; margin-bottom:6px; }
+.links-edit-row select, .links-edit-row input { min-width:0; font-size:11px; padding:3px 6px; border:1px solid var(--border); border-radius:4px; background:var(--surface); color:var(--text); font-family:inherit; }
+@media (max-width:600px) { .links-edit-row { grid-template-columns:1fr auto; } }
+.link-btn { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); text-decoration:none; color:var(--text); }
+.link-btn:hover { border-color:var(--accent); color:var(--accent); }
+.link-icon { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--mono); font-size:10px; font-weight:700; }
+.link-info { flex:1; min-width:0; }
+.link-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.link-desc { font-size:11px; color:var(--text-3); }
+.ejec-form { display:flex; flex-direction:column; gap:12px; }
+.ejec-field label { display:block; font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; }
+.ejec-field .val { font-size:13px; color:var(--text-2); padding:4px 0; }
+.ejec-placeholder { font-size:12px; color:var(--text-3); font-style:italic; }
+.docs-list { display:flex; flex-direction:column; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.doc-item { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border); background:var(--surface); }
+.doc-item:last-child { border-bottom:none; }
+.doc-cb { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
+.doc-label { font-size:13px; color:var(--text-2); flex:1; cursor:pointer; }
+.doc-label.done-label { text-decoration:line-through; color:var(--text-3); }
+.doc-del-btn { font-size:10px; padding:2px 5px; background:none; border:1px solid var(--border); border-radius:3px; cursor:pointer; color:var(--text-3); line-height:1; flex-shrink:0; }
+.doc-del-btn:hover { color:var(--red); border-color:var(--red); }
+
+/* ─── COMMENTS ─── */
+.comments-list { display:flex; flex-direction:column; gap:7px; }
+.comment-row { display:flex; flex-direction:column; gap:4px; font-size:12px; }
+.comment-row-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.c-date { font-family:var(--mono); font-size:10px; color:var(--text-3); white-space:nowrap; }
+.c-text { color:var(--text-2); line-height:1.5; }
+.comment-row-actions { display:flex; gap:4px; flex-shrink:0; }
+.fld { width:100%; font-size:12px; padding:4px 6px; border:1px solid var(--border); border-radius:4px; background:var(--surface); color:var(--text); font-family:inherit; }
+.btn-ok { font-size:11px; padding:3px 10px; background:var(--accent); color:#fff; border:none; border-radius:4px; cursor:pointer; font-family:inherit; font-weight:600; }
+.btn-cancel { font-size:11px; padding:3px 10px; background:var(--surface2); color:var(--text-2); border:1px solid var(--border); border-radius:4px; cursor:pointer; font-family:inherit; }
+
+/* ─── OVERVIEW TABLE ─── */
+.ov-table { width:100%; border-collapse:collapse; min-width:640px; }
+.ov-table th { text-align:left; font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); padding:8px 14px; border-bottom:2px solid var(--border-md); }
+.ov-table td { padding:10px 14px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
+.ov-table tr:last-child td { border-bottom:none; }
+.ov-table tbody tr:hover td { background:var(--surface2); cursor:pointer; }
+
+/* ─── RAID ─── */
+.pend-section { margin-top:16px; }
+.pend-header { margin-bottom:8px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.pend-title { font-weight:700; font-size:15px; }
+.pend-counters { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin-bottom:12px; }
+.pend-counter { background:var(--surface2); border-radius:var(--radius); padding:8px 12px; border:1px solid transparent; }
+.pend-counter-label { font-size:11px; color:var(--text-3); }
+.pend-counter-val { font-size:19px; font-weight:700; margin-top:2px; }
+.pend-metric-hint { font-size:10.5px; color:var(--text-3); margin-top:2px; }
+.pend-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.pend-chip { font-size:11.5px; padding:2px 9px; border-radius:999px; border:1px solid var(--border); background:transparent; color:var(--text-2); cursor:pointer; font-family:inherit; }
+.pend-chip.zero { opacity:.55; }
+.pend-chip.active { border-color:var(--accent); color:var(--accent); opacity:1; }
+.pend-chip b { font-weight:700; margin-left:3px; }
+.pend-form { border:1px solid var(--border-md); border-radius:var(--radius); background:var(--surface2); padding:8px; margin-bottom:10px; display:grid; grid-template-columns:1fr 110px 110px 120px 130px 32px; gap:6px; align-items:start; }
+@media (max-width:900px) { .pend-form { grid-template-columns:1fr 1fr; } }
+.pend-form input, .pend-form select { font-size:12px; padding:5px 7px; border:1px solid var(--border); border-radius:4px; background:var(--surface); color:var(--text); font-family:inherit; height:30px; width:100%; }
+.pend-form-err { grid-column:1/-1; font-size:11px; color:var(--red); }
+.pend-table-wrap { border:1px solid var(--border); border-radius:var(--radius); overflow-x:auto; }
+.pend-table { width:100%; border-collapse:collapse; font-size:12px; min-width:620px; }
+.pend-table th { text-align:left; padding:7px 9px; font-weight:600; color:var(--text-3); font-size:10px; text-transform:uppercase; letter-spacing:.05em; background:var(--surface2); white-space:nowrap; }
+.pend-table td { padding:7px 9px; border-top:1px solid var(--border); vertical-align:middle; }
+.pend-table td.pend-tarea { white-space:normal; word-break:break-word; }
+.pend-table td.pend-actions { text-align:right; white-space:nowrap; }
+.pend-table td.pend-actions button { background:none; border:none; cursor:pointer; color:var(--text-3); font-size:13px; padding:2px 4px; }
+.pend-table td input, .pend-table td select { width:100%; font-size:12px; padding:3px 5px; border:1px solid var(--border); border-radius:4px; background:var(--surface); color:var(--text); font-family:inherit; }
+.pend-cerrados-row td { background:var(--surface2); cursor:pointer; font-size:11px; color:var(--text-2); }
+.pend-vencido { color:var(--red); font-weight:600; }
+.pend-cerrado-fecha { color:var(--text-3); }
+.pend-empty td { text-align:center; color:var(--text-3); padding:14px; }
+.pend-del-confirm { display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+.pend-del-confirm button { background:none; border:1px solid var(--border-md); border-radius:4px; padding:2px 8px; cursor:pointer; font-family:inherit; font-size:11px; color:var(--text); }
+
+/* ─── MODAL ─── */
+.modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:2000; align-items:center; justify-content:center; }
+.modal-box { background:var(--surface); border-radius:12px; padding:24px; width:540px; max-width:92vw; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.2); }
+
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-thumb { background:rgba(0,0,0,.18); border-radius:3px; }
+@media(max-width:700px){ .sidebar{width:56px;} .sidebar .sb-logo-text, .sidebar .sb-section, .sidebar .sb-label, .sidebar .sb-footer{display:none;} .sidebar .sb-btn{justify-content:center;padding:9px 0;} .main{margin-left:56px;padding:16px;} }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+<div class="shell">
+
+<nav class="sidebar" id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-text">
+      <div class="eyebrow">Demo workspace</div>
+      <div class="brand">Automation PM Dashboard</div>
+      <div class="tagline">Fictional data · open source</div>
+    </div>
+    <button class="sb-toggle" onclick="toggleSidebar()" title="Collapse menu">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="10,3 5,8 10,13"></polyline></svg>
+    </button>
+  </div>
+  <div style="padding:8px 0;">
+    <div class="sb-section">Overview</div>
+    <button class="sb-btn active" id="btn-overview" onclick="showOverview()" title="Portfolio">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="5" height="5" rx="1"></rect><rect x="8" y="1" width="5" height="5" rx="1"></rect><rect x="1" y="8" width="5" height="5" rx="1"></rect><rect x="8" y="8" width="5" height="5" rx="1"></rect></svg>
+      <span class="sb-label">Portfolio</span>
+    </button>
+    <div class="sb-section">Accounts</div>
+    <div id="sb-accounts"></div>
+  </div>
+  <div class="sb-footer">All names and figures are fictional.</div>
+</nav>
+
+<main class="main" id="main-content">
+  <div id="pane-overview" class="pane active">
+    <div class="topbar">
+      <div><div class="topbar-title">Portfolio</div><div class="topbar-sub">All accounts · active and completed projects</div></div>
+      <div class="demo-note">Demo data · edits are saved in this browser only</div>
+    </div>
+    <div class="metrics" id="overview-metrics"></div>
+    <div class="sec-title">Projects</div>
+    <div class="section-card">
+      <table class="ov-table">
+        <thead><tr><th>Project</th><th>Account</th><th>Hours</th><th>Burn</th><th>Status</th><th>Alert</th></tr></thead>
+        <tbody id="overview-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="account-panes"></div>
+</main>
+</div>
+
+<div id="roadmap-edit-modal" class="modal" onclick="if(event.target===this)_closeRoadmapEdit()">
+  <div class="modal-box">
+    <div id="roadmap-edit-title" style="font-size:15px;font-weight:700;margin-bottom:16px">Edit roadmap</div>
+    <div id="roadmap-edit-fields"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+      <button class="btn-cancel" style="font-size:13px;padding:7px 16px" onclick="_closeRoadmapEdit()">Cancel</button>
+      <button class="btn-ok" style="font-size:13px;padding:7px 16px" onclick="saveRoadmapEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="edit-bar" style="position:fixed;bottom:20px;right:20px;z-index:1000">
+  <button id="edit-mode-btn" onclick="toggleEditMode()" style="font-size:12px;padding:7px 14px;background:var(--surface);color:var(--text-2);border:1px solid var(--border-md);border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.1)">✏️ Edit</button>
+</div>
+
+<script src="config.js"></script>
+<script src="data/projects.js"></script>
+<script>
+// ══════════════════════════════════════════════
+// STORAGE — mock backend: this browser's localStorage only.
+// Nothing is ever sent over the network. To share data between users,
+// replace read()/write() with calls to YOUR OWN backend (see docs/usage.md).
+// ══════════════════════════════════════════════
+const Store = {
+  async read() {
+    const raw = localStorage.getItem(CONFIG.storage.localKey);
+    return raw ? JSON.parse(raw) : null;
+  },
+  async write(blob) {
+    localStorage.setItem(CONFIG.storage.localKey, JSON.stringify(blob));
+  }
+};
+
+// ══════════════════════════════════════════════
+// SANITIZING — saved data is untrusted input: validate shapes and types
+// before use, and escape every string when it is rendered.
+// ══════════════════════════════════════════════
+const _RE_ISO = /^\d{4}-\d{2}-\d{2}$/, _RE_HEX = /^#[0-9a-f]{6}$/i, _RE_ID = /^[A-Za-z0-9_-]{1,64}$/, _RE_RAID_ID = /^R-\d{1,5}$/;
+const _str = (v, max) => (typeof v === 'string' ? v : v == null ? '' : String(v)).slice(0, max || 2000);
+const _isoOrNull = v => (typeof v === 'string' && _RE_ISO.test(v)) ? v : null;
+const _num = (v, min, max) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min; };
+const _arr = v => Array.isArray(v) ? v : [];
+function _safeUrl(u) {
+  try { const x = new URL(_str(u, 2000)); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : null; } catch (e) { return null; }
+}
+function _cleanSaved(f, v) {
+  switch (f) {
+    case 'comments': return _arr(v).map(c => ({ date: _str(c && c.date, 40), text: _str(c && c.text) })).filter(c => c.text);
+    case 'docs': return _arr(v).map(d => ({ label: _str(d && d.label, 200), done: !!(d && d.done) })).filter(d => d.label);
+    case 'links': return _arr(v).map(l => ({ type: _LINK_TYPES[l && l.type] ? l.type : 'backlog', name: _str(l && l.name, 100), url: _safeUrl(l && l.url) })).filter(l => l.url);
+    case 'progress': { const o = {}; STAGES.forEach(s => { o[s.key] = Math.round(_num(v && v[s.key], 0, 100)); }); return o; }
+    case 'plannedEnd': return _isoOrNull(v);
+    case 'plannedEndHistory': return _arr(v).map(h => ({ date: _isoOrNull(h && h.date), previous: _isoOrNull(h && h.previous), next: _isoOrNull(h && h.next), reason: _str(h && h.reason, 300) })).filter(h => h.date && h.previous);
+    case 'raid': {
+      const items = _arr(v && v.items).map(i => ({
+        id: _RE_RAID_ID.test(i && i.id) ? i.id : null, title: _str(i && i.title, 500),
+        type: RAID_TYPES.includes(i && i.type) ? i.type : 'Action', status: RAID_STATUSES.includes(i && i.status) ? i.status : 'Open',
+        owner: _str(i && i.owner, 100), due: _isoOrNull(i && i.due), created: _isoOrNull(i && i.created),
+        impact: (i && i.type === 'Change' && Number(i.impact) > 0) ? Math.round(_num(i.impact, 1, 999)) : undefined
+      })).filter(i => i.id && i.title);
+      const maxSeq = items.reduce((m, i) => Math.max(m, parseInt(i.id.slice(2))), 0);
+      return { nextSeq: Math.max(Math.round(_num(v && v.nextSeq, 1, 99999)), maxSeq + 1), items };
+    }
+    case 'roadmap': {
+      const stages = _arr(v && v.stages).map(s => ({
+        name: _str(s && s.name, 60), start: _isoOrNull(s && s.start), end: _isoOrNull(s && s.end),
+        color: _RE_HEX.test(s && s.color) ? s.color : STAGES[0].color,
+        done: !!(s && s.done), current: !!(s && s.current), blocked: !!(s && s.blocked),
+        gaps: _arr(s && s.gaps).map(g => ({ start: _isoOrNull(g && g.start), days: Math.round(_num(g && g.days, 1, 365)), reason: _str(g && g.reason, 200) })).filter(g => g.start)
+      })).filter(s => s.name && s.start && s.end && s.end >= s.start);
+      const r = { stages };
+      const ms = _arr(v && v.milestones).map(m => ({ date: _isoOrNull(m && m.date), label: _str(m && m.label, 100) })).filter(m => m.date);
+      if (ms.length) r.milestones = ms;
+      if (_isoOrNull(v && v.closeDate)) r.closeDate = v.closeDate;
+      return r;
+    }
+  }
+  return undefined;
+}
+
+// ══════════════════════════════════════════════
+// DATES
+// ══════════════════════════════════════════════
+const STAGES = CONFIG.stages;
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const FILL = { ok:'#16A34A', warn:'#D97706', danger:'#DC2626', noest:'#3B82F6' };
+function dateLocal(str) { const [y,m,d] = str.split('-').map(Number); return new Date(y,m-1,d); }
+function _iso(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+const HOLIDAYS = new Set(CONFIG.holidays);
+function isHoliday(d) { return HOLIDAYS.has(_iso(d)); }
+function isNonWorkDay(d) { const w = d.getDay(); return w===0||w===6||isHoliday(d); }
+function addWorkDays(date, n) {
+  let d = new Date(date.getTime()); let count = 0;
+  while (count < n) { d.setDate(d.getDate()+1); if(!isNonWorkDay(d)) count++; }
+  return d;
+}
+function _todayISO() { return _iso(TODAY); }
+function _todayLabel() { return TODAY.getDate()+' '+MONTHS[TODAY.getMonth()]; }
+function _fmtDM(iso) { const d = dateLocal(iso); return d.getDate()+' '+MONTHS[d.getMonth()]; }
+function _burnLevel(pct) { return pct > CONFIG.burn.dangerPct ? 'danger' : pct >= CONFIG.burn.warnPct ? 'warn' : 'ok'; }
+
+// ══════════════════════════════════════════════
+// DERIVED HOURS (totals come from roleHours in the data file)
+// ══════════════════════════════════════════════
+function _derive(p) {
+  const rh = p.roleHours || [];
+  p.stageHours = {};
+  STAGES.forEach(s => {
+    let est = 0, spent = 0;
+    rh.forEach(r => { if (r[s.key]) { est += r[s.key].est || 0; spent += r[s.key].spent || 0; } });
+    p.stageHours[s.key] = (est || spent) ? { est, spent, pct: est > 0 ? Math.round(spent/est*100) : (spent > 0 ? 999 : 0) } : null;
+  });
+  p.roles = rh.map(r => {
+    let est = 0, spent = 0;
+    STAGES.forEach(s => { if (r[s.key]) { est += r[s.key].est || 0; spent += r[s.key].spent || 0; } });
+    return { role: r.role, est, spent, members: r.members || [] };
+  });
+  p.estimate = p.roles.reduce((a, r) => a + r.est, 0);
+  p.spent = p.roles.reduce((a, r) => a + r.spent, 0);
+}
+
+// ══════════════════════════════════════════════
+// ROADMAP (GANTT)
+// ══════════════════════════════════════════════
+function _stageIsGapDay(stage, d) {
+  if (!stage.gaps || !stage.gaps.length) return false;
+  const dm = d.getTime();
+  return stage.gaps.some(g => {
+    const gs = dateLocal(g.start).getTime();
+    const ge = addWorkDays(dateLocal(g.start), g.days).getTime();
+    return dm >= gs && dm < ge;
+  });
+}
+function _stageWorkDays(stage, from, to) {
+  let count = 0;
+  for (let d = new Date(from.getTime()); d < to; d.setDate(d.getDate()+1)) {
+    if (isNonWorkDay(d)) continue;
+    if (_stageIsGapDay(stage, d)) continue;
+    count++;
+  }
+  return count;
+}
+function _stageEndMs(stage) {
+  return stage.end ? dateLocal(stage.end).getTime() + 86400000 : addWorkDays(dateLocal(stage.start), stage.days).getTime();
+}
+function _stageEndInput(stage) {
+  if (stage.end) return stage.end;
+  let d = new Date(addWorkDays(dateLocal(stage.start), stage.days).getTime() - 86400000);
+  while (isNonWorkDay(d)) d = new Date(d.getTime() - 86400000);
+  return _iso(d);
+}
+function _stageProgressFraction(stage, start, end) {
+  const total = _stageWorkDays(stage, start, end);
+  if (total <= 0) return null;
+  const elapsedEnd = TODAY < end ? new Date(TODAY.getTime()+86400000) : end;
+  if (elapsedEnd <= start) return 0;
+  return Math.max(0, Math.min(1, _stageWorkDays(stage, start, elapsedEnd)/total));
+}
+function roadmapProgressPct(p) {
+  const r = p.roadmap;
+  if (!r || !r.stages || !r.stages.length) return null;
+  let totalAll = 0, elapsedAll = 0;
+  r.stages.forEach(s => {
+    const start = dateLocal(s.start);
+    const end = new Date(_stageEndMs(s));
+    if (end <= start) return;
+    totalAll += _stageWorkDays(s, start, end);
+    const elapsedEnd = TODAY < end ? new Date(TODAY.getTime()+86400000) : end;
+    if (elapsedEnd > start) elapsedAll += _stageWorkDays(s, start, elapsedEnd);
+  });
+  if (totalAll <= 0) return null;
+  return Math.max(0, Math.min(100, Math.round(elapsedAll/totalAll*100)));
+}
+function stageProgressPct(p, stageName) {
+  const r = p.roadmap;
+  if (!r || !r.stages) return null;
+  const s = r.stages.find(x => x.name === stageName);
+  if (!s) return null;
+  const start = dateLocal(s.start), end = new Date(_stageEndMs(s));
+  if (end <= start) return null;
+  const frac = _stageProgressFraction(s, start, end);
+  return frac === null ? null : Math.round(frac*100);
+}
+function _roadmapRange(p) {
+  const r = p.roadmap;
+  let minDate = null, maxDate = null;
+  r.stages.forEach(s => {
+    const st = dateLocal(s.start), en = new Date(_stageEndMs(s));
+    if (!minDate || st < minDate) minDate = st;
+    if (!maxDate || en > maxDate) maxDate = en;
+  });
+  (r.milestones || []).forEach(m => { const d = dateLocal(m.date); if (d < minDate) minDate = d; if (d > maxDate) maxDate = d; });
+  if (r.closeDate) { const cd = dateLocal(r.closeDate); if (cd > maxDate) maxDate = cd; }
+  return { minDate, maxDate };
+}
+function _closeDate(p) {
+  const r = p.roadmap;
+  if (r.closeDate) return dateLocal(r.closeDate);
+  const last = r.stages[r.stages.length-1];
+  return last ? dateLocal(_stageEndInput(last)) : null;
+}
+function _milestoneMap(p) {
+  const m = {};
+  (p.roadmap.milestones || []).forEach(h => { m[dateLocal(h.date).toDateString()] = h.label || 'Milestone'; });
+  return m;
+}
+
+const _ganttWeekView = new Set();
+function toggleGanttScale(projId) {
+  if (_ganttWeekView.has(projId)) _ganttWeekView.delete(projId); else _ganttWeekView.add(projId);
+  const p = _findProject(projId);
+  if (p) _ganttRefresh(p);
+}
+function exportGanttPng(projId) {
+  const wrap = document.getElementById('gantt-'+projId);
+  if (!wrap) return;
+  html2canvas(wrap, { backgroundColor:'#ffffff', scale:2, useCORS:true }).then(canvas => {
+    const a = document.createElement('a');
+    a.download = 'roadmap-'+projId+'.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  });
+}
+function buildGanttWeek(p) {
+  const stages = p.roadmap.stages;
+  const { minDate, maxDate } = _roadmapRange(p);
+  const rangeStart = new Date(minDate.getTime() - 3*86400000);
+  const ne = new Date(maxDate.getTime() + 7*86400000), tb = new Date(TODAY.getTime() + 7*86400000);
+  const rangeEnd = ne > tb ? ne : tb;
+  const firstMon = new Date(rangeStart.getTime());
+  const dow0 = firstMon.getDay();
+  firstMon.setDate(firstMon.getDate() - (dow0 === 0 ? 6 : dow0 - 1));
+  const weekCols = [];
+  for (let cur = new Date(firstMon); cur < rangeEnd; cur.setDate(cur.getDate()+7)) {
+    const mon = new Date(cur);
+    weekCols.push({ monday:mon, days: Array.from({length:7}, (_,i) => new Date(mon.getTime()+i*86400000)) });
+  }
+  const inWeek = (d, w) => d >= w.monday && d <= new Date(w.monday.getTime()+6*86400000);
+  const todayWk = weekCols.findIndex(w => inWeek(TODAY, w));
+  const closeD = _closeDate(p);
+  const closeWk = closeD ? weekCols.findIndex(w => inWeek(closeD, w)) : -1;
+  const msMap = _milestoneMap(p);
+  const mHeaders = [];
+  let cm=-1, cy=-1, sp=0;
+  weekCols.forEach((w,i) => {
+    const m=w.monday.getMonth(), y=w.monday.getFullYear();
+    if (m!==cm||y!==cy){ if(sp>0) mHeaders.push({label:MONTHS[cm]+' '+cy,span:sp}); cm=m;cy=y;sp=1; } else sp++;
+    if (i===weekCols.length-1) mHeaders.push({label:MONTHS[cm]+' '+cy,span:sp});
+  });
+  const gapNotes = [];
+  stages.forEach(s => (s.gaps || []).forEach(g => {
+    if (!g.reason || !g.reason.trim()) return;
+    gapNotes.push('* '+_fmtDM(g.start)+': '+_eh(g.reason.trim()));
+  }));
+  const WW=46, SC=110;
+  let html = `<div class="gantt-wrap" id="gantt-${p.id}"><table class="gantt-table" style="width:${SC+weekCols.length*WW}px">`;
+  html += `<tr><th class="stage-col" rowspan="2">Stage</th>`;
+  mHeaders.forEach(m => { html += `<th colspan="${m.span}" style="font-size:10px;border-bottom:none;padding-bottom:0">${m.label}</th>`; });
+  html += `</tr><tr>`;
+  weekCols.forEach((w,i) => {
+    const isT=i===todayWk, isC=i===closeWk;
+    const lbl = w.monday.getDate()+' '+MONTHS[w.monday.getMonth()];
+    const bg = isT ? 'background:rgba(249,115,22,0.16);font-weight:700;color:var(--today)' : isC ? 'background:rgba(71,85,105,0.15);font-weight:700;color:#475569' : '';
+    html += `<th class="gantt-day-header${isT?' is-today':''}" style="${bg?bg+';':''}min-width:${WW}px;max-width:${WW}px;font-size:9px">${lbl}</th>`;
+  });
+  html += `</tr>`;
+  stages.forEach(s => {
+    const stMs=dateLocal(s.start).getTime(), enMs=_stageEndMs(s);
+    const stageLabel = `${_eh(s.name)}${s.done?' ✓':s.blocked?' ⚠':s.current?' ←':''}`;
+    html += `<tr class="gantt-stage-row"><td class="stage-name">${stageLabel}</td>`;
+    weekCols.forEach((w,wi) => {
+      const isT=wi===todayWk, isC=wi===closeWk;
+      let hasActive=false, weekHasGap=false;
+      for (const d of w.days) {
+        const dMs=d.getTime();
+        const inR = !isNonWorkDay(d) && dMs>=stMs && dMs<enMs;
+        const isGap = _stageIsGapDay(s, d);
+        if (isGap) weekHasGap=true;
+        if (inR && !isGap) { hasActive=true; break; }
+      }
+      const opacity=s.done?0.5:1;
+      let inner='';
+      if (hasActive) inner += `<div style="position:absolute;top:2px;bottom:2px;left:1px;right:1px;background:${s.color};opacity:${opacity};border-radius:2px"></div>`;
+      else if (weekHasGap) inner += `<div style="position:absolute;top:2px;bottom:2px;left:1px;right:1px;background:${s.color};opacity:0.25;border-radius:2px" title="Week without progress (blocker)"></div>`;
+      if (isT) inner+=`<div style="position:absolute;top:0;bottom:0;left:${Math.floor(WW/2)}px;width:2px;background:var(--today);z-index:5"></div>`;
+      if (isC) inner+=`<div style="position:absolute;top:0;bottom:0;left:${Math.floor(WW/2)}px;width:2px;background:#475569;z-index:5"></div>`;
+      for (let di=0; di<7; di++) { if (Object.prototype.hasOwnProperty.call(msMap, w.days[di].toDateString())) inner+=`<div style="position:absolute;top:0;bottom:0;left:${Math.round((di+0.5)/7*WW)}px;width:3px;background:var(--accent);z-index:5"></div>`; }
+      html += `<td style="position:relative;height:22px;min-width:${WW}px;max-width:${WW}px">${inner}</td>`;
+    });
+    html += `</tr>`;
+  });
+  html += `</table>`;
+  if (gapNotes.length) html += `<div style="font-size:10px;color:var(--text-3);padding:8px 4px 2px">${gapNotes.map(n=>'<div>'+n+'</div>').join('')}</div>`;
+  return html + `</div>`;
+}
+function buildGanttDay(p) {
+  const stages = p.roadmap.stages;
+  const { minDate, maxDate } = _roadmapRange(p);
+  const rangeStart = new Date(minDate.getTime() - 3*86400000);
+  const naturalEnd = new Date(maxDate.getTime() + 7*86400000);
+  const todayPlusBuffer = new Date(TODAY.getTime() + 7*86400000);
+  const rangeEnd = naturalEnd > todayPlusBuffer ? naturalEnd : todayPlusBuffer;
+  const totalDays = Math.ceil((rangeEnd - rangeStart) / 86400000);
+  const DAY_W = 18, STAGE_COL = 110;
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dayCols = [];
+  for (let i = 0; i < totalDays; i++) dayCols.push(new Date(rangeStart.getTime() + i*86400000));
+  const monthHeaders = [];
+  let curMonth = -1, curYear = -1, span = 0;
+  dayCols.forEach((d, i) => {
+    if (d.getMonth() !== curMonth || d.getFullYear() !== curYear) {
+      if (span > 0) monthHeaders.push({label: MONTHS[curMonth]+' '+curYear, span});
+      curMonth = d.getMonth(); curYear = d.getFullYear(); span = 1;
+    } else span++;
+    if (i === dayCols.length - 1) monthHeaders.push({label: MONTHS[curMonth]+' '+curYear, span});
+  });
+  const closeD = _closeDate(p);
+  let todayIdx = -1, closeIdx = -1;
+  dayCols.forEach((d, i) => {
+    if (d.toDateString() === TODAY.toDateString()) todayIdx = i;
+    if (closeD && d.toDateString() === closeD.toDateString()) closeIdx = i;
+  });
+  const msMap = _milestoneMap(p);
+  let html = `<div class="gantt-wrap" id="gantt-${p.id}"><table class="gantt-table" style="width:${STAGE_COL + dayCols.length*DAY_W}px">`;
+  html += `<tr><th class="stage-col" rowspan="2">Stage</th>`;
+  monthHeaders.forEach(m => { html += `<th colspan="${m.span}" style="font-size:10px;border-bottom:none;padding-bottom:0">${m.label}</th>`; });
+  html += `</tr><tr>`;
+  dayCols.forEach((d, i) => {
+    const dow = d.getDay(), isWe = dow === 0 || dow === 6, isHol = isHoliday(d), isToday = i === todayIdx;
+    const isMs = Object.prototype.hasOwnProperty.call(msMap, d.toDateString());
+    const tip = `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()} · ${dayNames[dow]}${isHol?' (holiday)':''}${isMs?' · ★ '+_eh(msMap[d.toDateString()]):''}`;
+    const bg = isToday ? 'background:rgba(249,115,22,0.16);font-weight:700;color:var(--today)' : i === closeIdx ? 'background:rgba(71,85,105,0.15);font-weight:700;color:#475569' : isMs ? 'background:var(--accent);font-weight:700;color:#fff' : isHol ? 'background:rgba(202,138,4,0.14)' : isWe ? 'opacity:.5' : '';
+    html += `<th class="gantt-day-header${isToday?' is-today':''}" data-tip="${tip}" style="${bg ? bg+';' : ''}min-width:${DAY_W}px;max-width:${DAY_W}px">${d.getDate()}</th>`;
+  });
+  html += `</tr>`;
+  stages.forEach(s => {
+    const stageStart = dateLocal(s.start).getTime(), stageEnd = _stageEndMs(s);
+    const stageLabel = `${_eh(s.name)}${s.done?' ✓':s.blocked?' ⚠':s.current?' ←':''}`;
+    html += `<tr class="gantt-stage-row"><td class="stage-name">${stageLabel}</td>`;
+    dayCols.forEach((d, i) => {
+      const dayStart = d.getTime(), dow = d.getDay(), isWe = dow === 0 || dow === 6, isHol = isHoliday(d);
+      const inRange = !isWe && !isHol && dayStart >= stageStart && dayStart < stageEnd;
+      const isMsDay = Object.prototype.hasOwnProperty.call(msMap, d.toDateString());
+      const cellStyle = isMsDay ? 'background:rgba(15,118,110,0.12);' : isWe ? 'background:rgba(0,0,0,0.03);' : isHol ? 'background:rgba(202,138,4,0.08);' : '';
+      let inner = '';
+      const gapHit = s.gaps && s.gaps.find(g => dayStart >= dateLocal(g.start).getTime() && dayStart < addWorkDays(dateLocal(g.start), g.days).getTime());
+      if (gapHit) inner = `<div style="position:absolute;top:2px;bottom:2px;left:1px;right:1px;background:${s.color};opacity:0.25;border-radius:2px" title="${_eh(gapHit.reason || 'No progress')}"></div>`;
+      else if (inRange) inner = `<div style="position:absolute;top:2px;bottom:2px;left:1px;right:1px;background:${s.color};opacity:${s.done ? 0.5 : 1};border-radius:2px"></div>`;
+      if (i === todayIdx) inner += `<div style="position:absolute;top:0;bottom:0;left:8px;width:2px;background:var(--today);z-index:5"></div>`;
+      if (i === closeIdx) inner += `<div style="position:absolute;top:0;bottom:0;left:8px;width:2px;background:#475569;z-index:5"></div>`;
+      html += `<td style="position:relative;height:22px;min-width:${DAY_W}px;max-width:${DAY_W}px;${cellStyle}">${inner}</td>`;
+    });
+    html += `</tr>`;
+  });
+  return html + `</table></div>`;
+}
+function buildRoadmapTab(p) {
+  const editDisp = document.body.classList.contains('edit-mode') ? '' : 'none';
+  if (!p.roadmap || !p.roadmap.stages || !p.roadmap.stages.length) return `<div id="gantt-outer-${p.id}">`
+    + '<div style="font-size:12px;color:var(--text-3);padding:8px 0">No roadmap data yet.</div>'
+    + `<button onclick="openRoadmapEdit('${p.id}')" class="gantt-ctrl-btn edit-only-btn" style="display:${editDisp};margin-top:8px">✏️ Add roadmap</button>`
+    + '<div style="margin-top:16px">'+buildProgressTable(p)+'</div>'
+    + '<div id="raid-outer-'+p.id+'">'+buildRaidSection(p)+'</div>'
+    + '</div>';
+  const isWeek = _ganttWeekView.has(p.id);
+  let html = `<div id="gantt-outer-${p.id}"><div class="roadmap-avance-grid"><div class="gantt-card">`;
+  html += `<div class="gantt-head-spacer" style="height:0"></div>`;
+  html += isWeek ? buildGanttWeek(p) : buildGanttDay(p);
+  html += `<div style="display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">`
+    + `<button onclick="toggleGanttScale('${p.id}')" class="gantt-ctrl-btn">View: ${isWeek?'Week':'Day'}</button>`
+    + `<button onclick="exportGanttPng('${p.id}')" class="gantt-ctrl-btn">Export PNG</button>`
+    + `<button onclick="openRoadmapEdit('${p.id}')" class="gantt-ctrl-btn edit-only-btn" style="display:${editDisp}">✏️ Edit roadmap</button>`
+    + `</div>`;
+  html += `</div><div>`+buildProgressTable(p)+`</div></div>`;
+  html += '<div id="raid-outer-'+p.id+'">'+buildRaidSection(p)+'</div>';
+  return html + '</div>';
+}
+function _ganttRefresh(p) {
+  const el = document.getElementById('gantt-outer-'+p.id);
+  if (!el) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = buildRoadmapTab(p);
+  const newEl = tmp.firstChild;
+  el.replaceWith(newEl);
+  requestAnimationFrame(() => { _syncRoadmapHeights(newEl.parentElement); _scrollGanttsToToday(newEl.parentElement); });
+}
+
+function ringCircumference(size) { return 2*Math.PI*((size-3)/2); }
+function progressRing(pct, color, size, id) {
+  const v = pct === null ? 0 : Math.max(0, Math.min(100, pct));
+  const r = (size-3)/2, c = ringCircumference(size), offset = c * (1 - v/100);
+  const idAttr = id ? ' id="'+id+'"' : '';
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" style="flex-shrink:0">'
+    + '<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="var(--surface2)" stroke-width="3"/>'
+    + '<circle'+idAttr+' cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="3" stroke-linecap="round" stroke-dasharray="'+c.toFixed(2)+'" stroke-dashoffset="'+offset.toFixed(2)+'" transform="rotate(-90 '+(size/2)+' '+(size/2)+')"/>'
+    + '</svg>';
+}
+
+// ══════════════════════════════════════════════
+// HOURS TAB
+// ══════════════════════════════════════════════
+function fmtH(n) {
+  if (n === undefined || n === null) return '—';
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+const _ICON_OK = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const _ICON_WARN = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2L14.5 13.5H1.5L8 2Z" stroke="currentColor" stroke-width="1.2"/><line x1="8" y1="6.5" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11.5" r="0.7" fill="currentColor"/></svg>';
+const _ICON_X = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="currentColor" stroke-width="1.3"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+function _roleIsOver(r) { return r.est > 0 && r.spent / r.est * 100 > CONFIG.burn.dangerPct; }
+function _roleNoEst(r) { return r.est === 0 && r.spent > 0; }
+
+function buildHoursTab(p) {
+  if (!p.estimate && !p.roles.length) return '<div style="font-size:12px;color:var(--text-3);padding:16px 0">No hours data yet.</div>';
+  const pct = p.estimate ? Math.round((p.spent / p.estimate) * 100) : null;
+  const rest = p.estimate ? (p.estimate - p.spent) : null;
+  const restPct = p.estimate ? Math.round((rest / p.estimate) * 100) : null;
+  const lvl = pct === null ? 'ok' : _burnLevel(pct);
+  const stagesArr = STAGES.map(s => ({ ...s, e:p.stageHours[s.key] }));
+  const criticalStages = stagesArr.filter(x => x.e && x.e.est > 0 && x.e.pct >= CONFIG.burn.stageAlertPct);
+  const overCount = p.roles.filter(_roleIsOver).length;
+
+  let alertsHtml = '';
+  if (pct !== null) alertsHtml += '<div class="hs-alert '+(lvl==='danger'?'red':lvl)+'">'+(lvl==='ok'?_ICON_OK:_ICON_WARN)+' '+Math.max(restPct,0)+'% available</div>';
+  criticalStages.forEach(x => { alertsHtml += '<div class="hs-alert warn">'+_ICON_WARN+' '+x.name+': '+x.e.pct+'%</div>'; });
+  if (overCount > 0) alertsHtml += '<div class="hs-alert red">'+_ICON_X+' Roles over budget: '+overCount+'</div>';
+
+  let html = '';
+  if (pct !== null) {
+    html += '<div class="hs-summary-bar"><div class="hs-summary-main">'
+      + '<div class="hs-summary-total">'+fmtH(p.spent)+' / '+fmtH(p.estimate)+' h <span>— '+pct+'%</span></div>'
+      + '<div class="hs-prog-outer"><div class="hs-prog-inner '+(lvl==='ok'?'':lvl)+'" style="width:'+Math.min(pct,100)+'%"></div></div>'
+      + '<div class="hs-summary-meta">'+fmtH(rest > 0 ? rest : 0)+' h remaining</div>'
+      + '</div>'
+      + (alertsHtml ? '<div class="hs-alerts">'+alertsHtml+'</div>' : '')
+      + '</div>';
+  }
+  if (stagesArr.some(x => x.e)) {
+    html += '<div class="hs-etapas-row">';
+    stagesArr.forEach(x => {
+      if (!x.e) return;
+      const noEst = !x.e.est;
+      const l = _burnLevel(x.e.pct);
+      const pctCls = noEst || x.e.pct === 0 ? 'gray' : l === 'danger' ? 'over' : l;
+      html += '<div class="hs-pill"><span class="dot" style="background:'+(x.e.pct === 0 && !noEst ? '#CBD5E1' : x.color)+'"></span>'
+        + x.name+': <span class="pct '+pctCls+'">'+(noEst ? '—' : x.e.pct+'%')+'</span>'
+        + '<span style="color:var(--text-3);font-size:10.5px">'+fmtH(x.e.spent)+(noEst ? ' h' : '/'+fmtH(x.e.est)+' h')+'</span></div>';
+    });
+    html += '</div>';
+  }
+  if (p.roles.length) {
+    const reMap = {};
+    (p.roleHours || []).forEach(r => { reMap[r.role] = r; });
+    const order = CONFIG.roleOrder;
+    const sorted = p.roles.slice().sort((a,b) => {
+      const ia = order.indexOf(a.role), ib = order.indexOf(b.role);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+    html += '<div class="hs-roles-grid">';
+    sorted.forEach(r => {
+      const rPct = r.est > 0 ? Math.round((r.spent / r.est) * 100) : (r.spent > 0 ? 999 : 0);
+      const isNoEst = _roleNoEst(r);
+      const l = _burnLevel(rPct);
+      const isOver = !isNoEst && l === 'danger';
+      const isWarn = !isNoEst && l === 'warn';
+      const tagCls = isNoEst ? 'hs-bnoest' : isOver ? 'hs-bover' : isWarn ? 'hs-bwarn' : 'hs-bok';
+      const tagLbl = isNoEst ? 'NOT ESTIMATED' : isOver ? 'OVER BUDGET' : isWarn ? 'WATCH' : 'OK';
+      const pctColor = isNoEst ? 'var(--blue)' : isOver ? 'var(--red)' : isWarn ? 'var(--amber)' : 'var(--green)';
+      const barColor = isNoEst ? FILL.noest : isOver ? FILL.danger : isWarn ? FILL.warn : FILL.ok;
+      const displayPct = r.est > 0 ? rPct+'%' : (r.spent > 0 ? '↑' : '—');
+      const re = reMap[r.role];
+      const pctTd = (est, spent) => {
+        if (est <= 0) return spent > 0 ? '<td style="color:var(--red);font-weight:700">↑</td>' : '<td>—</td>';
+        const pc = Math.round(spent / est * 100), ll = _burnLevel(pc);
+        return '<td style="color:var(--'+(ll==='danger'?'red':ll==='warn'?'amber':'green')+');font-weight:700">'+pc+'%</td>';
+      };
+      let detailRows = '';
+      if (re) STAGES.forEach(s => {
+        const d = re[s.key];
+        if (!d) { detailRows += '<tr><td>'+s.name+'</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>'; return; }
+        detailRows += '<tr><td>'+s.name+'</td><td>'+fmtH(d.est)+'</td><td>'+fmtH(d.spent)+'</td><td>'+fmtH(Math.max(0,d.est-d.spent))+'</td>'+pctTd(d.est,d.spent)+'</tr>';
+      });
+      const membersHtml = r.members.length
+        ? '<div class="hs-members-lbl">Team</div><div>'+r.members.map(m => '<div class="hs-member"><span>'+_eh(m.name)+'</span><strong>'+fmtH(m.hours)+' h</strong></div>').join('')+'</div>'
+        : '';
+      html += '<div class="hs-rol-card'+(isOver?' excedido':isNoEst?' no-estimado':'')+'">'
+        + '<div class="hs-rol-header" onclick="this.closest(\'.hs-rol-card\').classList.toggle(\'open\')">'
+        +   '<div class="hs-rol-header-left"><svg class="hs-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,4 10,8 6,12"/></svg>'
+        +     '<span class="hs-rol-name">'+_eh(r.role)+'</span><span class="hs-tag '+tagCls+'">'+tagLbl+'</span></div>'
+        +   '<span class="hs-rol-pct" style="color:'+pctColor+'">'+displayPct+'</span>'
+        + '</div>'
+        + '<div class="hs-rol-subline">'+fmtH(r.est)+' est · '+fmtH(r.spent)+' spent · '+fmtH(Math.max(0, r.est - r.spent))+' left</div>'
+        + '<div class="hs-rol-bar-wrap"><div class="hs-rol-bar-bg"><div class="hs-rol-bar-fill" style="width:'+Math.min(rPct,100)+'%;background:'+barColor+'"></div></div></div>'
+        + '<div class="hs-rol-detail">'
+        +   (detailRows ? '<table class="hs-dtable"><thead><tr><th>Stage</th><th>Est.</th><th>Spent</th><th>Left</th><th>%</th></tr></thead><tbody>'+detailRows+'</tbody></table>' : '')
+        +   membersHtml
+        + '</div></div>';
+    });
+    html += '</div>';
+
+    // Role × stage matrix
+    html += '<div class="sec-title" style="margin:6px 0 8px">Role × stage (spent/estimate)</div>'
+      + '<div style="overflow-x:auto"><table class="matrix-table"><thead><tr><th>Role</th>'+STAGES.map(s=>'<th>'+s.short+'</th>').join('')+'</tr></thead><tbody>';
+    (p.roleHours || []).forEach(r => {
+      html += '<tr><td>'+_eh(r.role)+'</td>';
+      STAGES.forEach(s => {
+        const d = r[s.key];
+        if (!d || (!d.est && !d.spent)) { html += '<td class="mx-na">—</td>'; return; }
+        const pctV = d.est > 0 ? Math.round((d.spent/d.est)*100) : 999;
+        html += '<td class="mx-'+_burnLevel(pctV)+'">'+fmtH(d.spent)+'/'+fmtH(d.est)+'</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  return html;
+}
+
+// ══════════════════════════════════════════════
+// PROGRESS TABLE (roadmap % vs hours % vs manual progress)
+// ══════════════════════════════════════════════
+function buildProgressTable(p) {
+  const stagesArr = STAGES.map(s => ({ ...s, e:p.stageHours[s.key] }));
+  if (!stagesArr.some(x => x.e)) return '<div style="font-size:12px;color:var(--text-3);padding:16px 0">No stage data yet.</div>';
+  if (!p.progress) { p.progress = {}; STAGES.forEach(s => p.progress[s.key] = 0); }
+  const pg = p.progress;
+  let html = '<div class="av-wrap" id="av-wrap-'+p.id+'">'
+    + '<div class="avt-header-row"><div>Stage</div><div>Roadmap</div><div>Hours spent</div><div>Progress</div></div>'
+    + '<div class="avt-head-spacer" style="height:0"></div>';
+  stagesArr.forEach(st => {
+    const e = st.e;
+    const hPct = e ? e.pct : null;
+    const pv = pg[st.key] || 0;
+    const rmPct = stageProgressPct(p, st.name);
+    const hl = hPct === null ? 'ok' : hPct > CONFIG.burn.dangerPct ? 'danger' : hPct >= CONFIG.burn.stageAlertPct ? 'warn' : 'ok';
+    const hColor = hl === 'ok' ? st.color : FILL[hl];
+    const rColor = rmPct !== null && rmPct >= 100 ? FILL.ok : st.color;
+    const dColor = pv >= 100 ? FILL.ok : st.color;
+    html += '<div class="avt-row">'
+      + '<div class="av-col-etapa"><span class="av-dot" style="background:'+st.color+'"></span>'+st.name+'</div>'
+      + '<div class="avt-col-rm">'+(rmPct !== null ? progressRing(rmPct, rColor, 22)+'<span class="av-pct-lbl">'+rmPct+'%</span>' : '<span class="av-pct-lbl">No data</span>')+'</div>'
+      + '<div class="avt-col-hs">'+(e ? progressRing(Math.min(hPct,100), hColor, 22)+'<span class="av-pct-lbl">'+(e.est ? hPct+'% · ' : '')+fmtH(e.spent)+'/'+fmtH(e.est)+'h</span>' : '<span class="av-pct-lbl">No data</span>')+'</div>'
+      + '<div class="avt-col-dv">'
+      +   '<div class="avt-dv-view" id="av-view-'+p.id+'-'+st.key+'">'
+      +     progressRing(pv, dColor, 22, 'av-ring-'+p.id+'-'+st.key)
+      +     '<span class="av-pct-lbl" id="av-pct-'+p.id+'-'+st.key+'">'+pv+'%</span>'
+      +     '<button class="edit-only-btn doc-del-btn" title="Edit" style="display:none" onclick="editProgress(\''+p.id+'\',\''+st.key+'\')">✏️</button>'
+      +   '</div>'
+      +   '<div class="av-dv-edit" id="av-edit-'+p.id+'-'+st.key+'">'
+      +     '<input type="number" min="0" max="100" value="'+pv+'" id="av-input-'+p.id+'-'+st.key+'" class="fld" style="width:62px" onkeydown="if(event.key===\'Enter\')saveProgress(\''+p.id+'\',\''+st.key+'\')">'
+      +     '<button class="btn-ok" onclick="saveProgress(\''+p.id+'\',\''+st.key+'\')">OK</button>'
+      +     '<button class="btn-cancel" onclick="cancelProgressEdit(\''+p.id+'\',\''+st.key+'\')">✕</button>'
+      +   '</div>'
+      + '</div></div>';
+  });
+  return html + '</div>';
+}
+function editProgress(projId, key) {
+  document.getElementById('av-view-'+projId+'-'+key).style.display = 'none';
+  document.getElementById('av-edit-'+projId+'-'+key).style.display = 'flex';
+  document.getElementById('av-input-'+projId+'-'+key).focus();
+}
+function cancelProgressEdit(projId, key) {
+  const p = _findProject(projId);
+  document.getElementById('av-input-'+projId+'-'+key).value = (p.progress||{})[key]||0;
+  document.getElementById('av-edit-'+projId+'-'+key).style.display = 'none';
+  document.getElementById('av-view-'+projId+'-'+key).style.display = '';
+}
+function saveProgress(projId, key) {
+  const p = _findProject(projId);
+  const val = Math.min(100, Math.max(0, parseInt(document.getElementById('av-input-'+projId+'-'+key).value)||0));
+  p.progress[key] = val;
+  const st = STAGES.find(s => s.key === key);
+  document.getElementById('av-pct-'+projId+'-'+key).textContent = val+'%';
+  const ring = document.getElementById('av-ring-'+projId+'-'+key);
+  ring.style.strokeDashoffset = ringCircumference(22) * (1 - val/100);
+  ring.style.stroke = val >= 100 ? FILL.ok : st.color;
+  document.getElementById('av-edit-'+projId+'-'+key).style.display = 'none';
+  document.getElementById('av-view-'+projId+'-'+key).style.display = '';
+  _patchProject(projId, { progress: p.progress });
+}
+
+// ══════════════════════════════════════════════
+// LINKS
+// ══════════════════════════════════════════════
+const _LINK_TYPES = {
+  backlog:  { label:'Backlog',  icon:'BL', color:'#0F766E', bg:'#CCFBF1', desc:'Project backlog' },
+  estimate: { label:'Estimate', icon:'ES', color:'#4338CA', bg:'#E0E7FF', desc:'Latest estimate' },
+};
+function _lt(l) { return _LINK_TYPES[l.type] || _LINK_TYPES.backlog; }
+function _linksTabInner(p) {
+  const links = p.links || [];
+  return links.length
+    ? '<div class="links-grid">'+links.map(l => { const t = _lt(l); return '<a class="link-btn" href="'+_eh(l.url)+'" target="_blank" rel="noopener"><div class="link-icon" style="background:'+t.bg+';color:'+t.color+'">'+t.icon+'</div><div class="link-info"><div class="link-name">'+_eh(l.name)+'</div><div class="link-desc">'+t.desc+'</div></div><div style="color:var(--text-3)">↗</div></a>'; }).join('')+'</div>'
+    : '<div style="font-size:12px;color:var(--text-3)">No links yet.</div>';
+}
+function _sideLinksInner(p) {
+  const links = p.links || [];
+  return links.length
+    ? '<div class="pcard-side-fixed"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:4px">'
+      + links.map(l => { const t = _lt(l); return '<a class="side-link-btn" href="'+_eh(l.url)+'" target="_blank" rel="noopener"><div class="side-link-icon" style="background:'+t.bg+';color:'+t.color+'">'+t.icon+'</div><span class="side-link-name">'+_eh(l.name)+'</span></a>'; }).join('')
+      + '</div></div>'
+    : '';
+}
+function _linkEditRowHtml(l) {
+  const t = l && _LINK_TYPES[l.type] ? l.type : 'backlog';
+  const opts = Object.entries(_LINK_TYPES).map(([k,v]) => '<option value="'+k+'"'+(k===t?' selected':'')+'>'+v.label+'</option>').join('');
+  const val = s => String(s||'').replace(/"/g,'&quot;');
+  return '<div class="links-edit-row">'
+    + '<select onchange="_linkTypeChanged(this)">'+opts+'</select>'
+    + '<input class="le-name" type="text" placeholder="Name" value="'+val(l ? l.name : _LINK_TYPES.backlog.label)+'">'
+    + '<input class="le-url" type="text" placeholder="https://..." value="'+val(l&&l.url)+'">'
+    + '<button class="doc-del-btn" title="Remove" onclick="this.parentNode.remove()">✕</button>'
+    + '</div>';
+}
+function _linkTypeChanged(sel) {
+  const name = sel.parentNode.querySelector('.le-name');
+  const isPreset = !name.value.trim() || Object.values(_LINK_TYPES).some(v => v.label === name.value.trim());
+  if (isPreset) name.value = _LINK_TYPES[sel.value].label;
+}
+function openLinksEdit(projId) {
+  const p = _findProject(projId);
+  const editEl = document.getElementById('links-edit-'+projId);
+  editEl.innerHTML = '<div id="links-edit-rows-'+projId+'">'+((p.links||[]).length ? p.links.map(_linkEditRowHtml).join('') : _linkEditRowHtml(null))+'</div>'
+    + '<button class="gantt-ctrl-btn" onclick="document.getElementById(\'links-edit-rows-'+projId+'\').insertAdjacentHTML(\'beforeend\', _linkEditRowHtml(null))">+ Add link</button>'
+    + '<div style="display:flex;gap:6px"><button class="btn-ok" onclick="saveLinksEdit(\''+projId+'\')">Save</button><button class="btn-cancel" onclick="cancelLinksEdit(\''+projId+'\')">Cancel</button></div>';
+  document.getElementById('links-view-'+projId).style.display = 'none';
+  editEl.style.display = '';
+}
+function cancelLinksEdit(projId) {
+  document.getElementById('links-edit-'+projId).style.display = 'none';
+  document.getElementById('links-view-'+projId).style.display = '';
+}
+function saveLinksEdit(projId) {
+  const p = _findProject(projId);
+  const links = [];
+  document.querySelectorAll('#links-edit-rows-'+projId+' .links-edit-row').forEach(row => {
+    let url = row.querySelector('.le-url').value.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    url = _safeUrl(url);
+    if (!url) return;
+    const type = row.querySelector('select').value;
+    const name = _str(row.querySelector('.le-name').value.trim(), 100) || _LINK_TYPES[type].label;
+    links.push({ type, name, url });
+  });
+  p.links = links;
+  document.getElementById('links-view-'+projId).innerHTML = _linksTabInner(p);
+  document.getElementById('side-links-'+projId).innerHTML = _sideLinksInner(p);
+  cancelLinksEdit(projId);
+  _patchProject(projId, { links });
+}
+
+// ══════════════════════════════════════════════
+// STATUS FILTER CHIPS (per account)
+// ══════════════════════════════════════════════
+function renderStatusChips(barId, projects) {
+  const bar = document.getElementById(barId);
+  if (!bar) return;
+  const statuses = [...new Set(projects.map(p => p.status))];
+  if (statuses.length < 2) { bar.innerHTML = ''; return; }
+  bar.innerHTML = '<span class="flt-label">Status</span>'
+    + '<button class="flt-chip active" data-value="" onclick="filterCardsByStatus(this)">All</button>'
+    + statuses.map(s => '<button class="flt-chip" data-value="'+_eh(s)+'" onclick="filterCardsByStatus(this)">'+_eh(s)+'</button>').join('');
+}
+function filterCardsByStatus(btn) {
+  const status = btn.dataset.value;
+  const grid = document.getElementById(btn.parentElement.dataset.grid);
+  if (!grid) return;
+  grid.querySelectorAll('.pcard').forEach(card => { card.style.display = (!status || card.dataset.status === status) ? '' : 'none'; });
+  btn.parentElement.querySelectorAll('.flt-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════════
+// DOCS TAB
+// ══════════════════════════════════════════════
+function _docItemHtml(projId, item, i) {
+  return '<div class="doc-item">'
+    + '<input type="checkbox" class="doc-cb" id="doc-cb-'+projId+'-'+i+'"'+(item.done?' checked':'')+' onchange="toggleDoc(\''+projId+'\','+i+')">'
+    + '<label for="doc-cb-'+projId+'-'+i+'" class="doc-label'+(item.done?' done-label':'')+'" id="doc-label-'+projId+'-'+i+'">'+_eh(item.label)+'</label>'
+    + '<button class="edit-only-btn doc-del-btn" onclick="removeDocItem(\''+projId+'\','+i+')" style="display:'+(_editModeActive()?'':'none')+'">✕</button>'
+    + '</div>';
+}
+function _docs(p) { if (!p.docs) p.docs = CONFIG.defaultDocs.map(l => ({label:l, done:false})); return p.docs; }
+function buildDocsTab(p) {
+  return '<div class="docs-list" id="docs-list-'+p.id+'">'+_docs(p).map((item,i) => _docItemHtml(p.id, item, i)).join('')+'</div>'
+    + '<div class="edit-only-btn" style="display:none"><div style="display:flex;gap:6px;margin-top:10px">'
+    +   '<input type="text" id="doc-new-input-'+p.id+'" class="fld" placeholder="New checklist item..." style="flex:1">'
+    +   '<button class="btn-ok" onclick="addDocItem(\''+p.id+'\')">+ Add</button>'
+    + '</div></div>';
+}
+function _rerenderDocs(p) { document.getElementById('docs-list-'+p.id).innerHTML = p.docs.map((item,i) => _docItemHtml(p.id, item, i)).join(''); }
+function toggleDoc(projId, idx) {
+  const p = _findProject(projId);
+  const cb = document.getElementById('doc-cb-'+projId+'-'+idx);
+  _docs(p)[idx].done = cb.checked;
+  document.getElementById('doc-label-'+projId+'-'+idx).classList.toggle('done-label', cb.checked);
+  _patchProject(projId, { docs: p.docs });
+}
+function addDocItem(projId) {
+  const input = document.getElementById('doc-new-input-'+projId);
+  const text = input.value.trim();
+  if (!text) return;
+  const p = _findProject(projId);
+  _docs(p).push({label:_str(text, 200), done:false});
+  input.value = '';
+  _rerenderDocs(p);
+  _patchProject(projId, { docs: p.docs });
+}
+function removeDocItem(projId, idx) {
+  const p = _findProject(projId);
+  _docs(p).splice(idx, 1);
+  _rerenderDocs(p);
+  _patchProject(projId, { docs: p.docs });
+}
+
+// ══════════════════════════════════════════════
+// CARD
+// ══════════════════════════════════════════════
+function buildCard(p) {
+  const pct = p.estimate ? Math.round((p.spent/p.estimate)*100) : null;
+  const runsHtml = p.runs
+    ? '<div class="ejec-form">'
+      + '<div class="ejec-field"><label>Status</label><div class="val">'+_eh(p.runs.status)+'</div></div>'
+      + '<div class="ejec-field"><label>Frequency</label><div class="val">'+_eh(p.runs.frequency)+'</div></div>'
+      + (p.runs.days ? '<div class="ejec-field"><label>Days</label><div class="val">'+_eh(p.runs.days)+'</div></div>' : '')
+      + (p.runs.time ? '<div class="ejec-field"><label>Run time</label><div class="val">'+_eh(p.runs.time)+'</div></div>' : '')
+      + (p.runs.notes ? '<div class="ejec-field"><label>Notes</label><div class="val">'+_eh(p.runs.notes)+'</div></div>' : '')
+      + '</div>'
+    : '<div class="ejec-placeholder">No run schedule yet. It is filled in once the automation is in production.</div>';
+  const linksTabHtml = '<div class="links-hd"><button class="gantt-ctrl-btn edit-only-btn" style="display:'+(_editModeActive()?'':'none')+'" onclick="openLinksEdit(\''+p.id+'\')">✏️ Edit links</button></div>'
+    + '<div id="links-view-'+p.id+'">'+_linksTabInner(p)+'</div>'
+    + '<div id="links-edit-'+p.id+'" class="links-edit" style="display:none"></div>';
+  const addCommentFormHtml = '<div id="add-comment-form-'+p.id+'" style="display:none;margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:10px">'
+    + '<input id="nc-date-'+p.id+'" type="text" class="fld" placeholder="Date (e.g. '+_todayLabel()+')" style="margin-bottom:4px">'
+    + '<textarea id="nc-text-'+p.id+'" class="fld" placeholder="Comment..." style="resize:vertical;min-height:55px"></textarea>'
+    + '<div style="display:flex;gap:4px;margin-top:4px"><button class="btn-ok" onclick="saveComment(\''+p.id+'\')">Save</button><button class="btn-cancel" onclick="cancelComment(\''+p.id+'\')">Cancel</button></div>'
+    + '</div>';
+
+  const overCount = p.roles.filter(_roleIsOver).length;
+  const overHtml = overCount > 0 ? '<span class="badge b-danger">'+overCount+(overCount===1?' role over budget':' roles over budget')+'</span>' : '';
+  const rmPct = roadmapProgressPct(p);
+  const rmHtml = rmPct !== null ? '<span class="badge b-gray">Roadmap: '+rmPct+'%</span>' : '';
+  const burnL = pct === null ? null : _burnLevel(pct);
+  const burnHtml = pct !== null ? '<span class="badge '+(burnL==='danger'?'b-danger':burnL==='warn'?'b-warn':'b-ok')+'">Burn: '+pct+'%</span>' : '';
+
+  return '<div class="pcard" id="pcard-'+p.id+'" data-status="'+_eh(p.status)+'">'
+    + '<div class="pcard-head">'
+    +   '<div class="pcard-head-left"><div class="pcard-name">'+_eh(p.name)+'</div><div class="pcard-account">'+_eh(p.account)+' · '+_eh(p.status)+'</div></div>'
+    +   '<div class="pcard-head-right">'+overHtml+rmHtml+burnHtml+'<span id="sem-'+p.id+'">'+_scheduleBadge(p)+'</span></div>'
+    + '</div>'
+    + '<div class="card-tabs">'
+    +   '<button class="card-tab active" onclick="switchCardTab(\''+p.id+'\',\'roadmap\',this)">Roadmap</button>'
+    +   '<button class="card-tab" onclick="switchCardTab(\''+p.id+'\',\'hours\',this)">Hours</button>'
+    +   '<button class="card-tab" onclick="switchCardTab(\''+p.id+'\',\'runs\',this)">Runs</button>'
+    +   '<button class="card-tab" onclick="switchCardTab(\''+p.id+'\',\'docs\',this)">Docs</button>'
+    +   '<button class="card-tab" onclick="switchCardTab(\''+p.id+'\',\'links\',this)">Links</button>'
+    + '</div>'
+    + '<div class="pcard-body">'
+    +   '<div class="pcard-main">'
+    +     '<div id="ctab-'+p.id+'-roadmap" class="card-tab-pane active">'+buildRoadmapTab(p)+'</div>'
+    +     '<div id="ctab-'+p.id+'-hours" class="card-tab-pane">'+buildHoursTab(p)+'</div>'
+    +     '<div id="ctab-'+p.id+'-runs" class="card-tab-pane">'+runsHtml+'</div>'
+    +     '<div id="ctab-'+p.id+'-docs" class="card-tab-pane">'+buildDocsTab(p)+'</div>'
+    +     '<div id="ctab-'+p.id+'-links" class="card-tab-pane">'+linksTabHtml+'</div>'
+    +   '</div>'
+    +   '<div class="pcard-side">'
+    +     '<div class="comments-card" id="comments-card-'+p.id+'">'
+    +       '<div class="comments-card-header" onclick="this.closest(\'.comments-card\').classList.toggle(\'open\')">'
+    +         '<div class="comments-card-header-left">'
+    +           '<svg class="comments-card-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,4 10,8 6,12"/></svg>'
+    +           '<span class="sec-title" style="margin:0">Comments</span><span class="comments-count">'+(p.comments||[]).length+'</span>'
+    +         '</div>'
+    +         '<button class="edit-only-btn btn-ok" onclick="event.stopPropagation();this.closest(\'.comments-card\').classList.add(\'open\');showAddComment(\''+p.id+'\')" style="display:none;font-size:10px;padding:2px 8px">+ Add</button>'
+    +       '</div>'
+    +       '<div class="comments-card-body">'+addCommentFormHtml+'<div id="comments-list-'+p.id+'">'+renderCommHtml(p.id, p.comments||[])+'</div></div>'
+    +     '</div>'
+    +     '<div id="side-links-'+p.id+'">'+_sideLinksInner(p)+'</div>'
+    +   '</div>'
+    + '</div>'
+  + '</div>';
+}
+
+// ══════════════════════════════════════════════
+// PORTFOLIO (OVERVIEW)
+// ══════════════════════════════════════════════
+function buildOverview() {
+  const active = ALL_PROJECTS.filter(p => !p.completed).length;
+  const atRisk = ALL_PROJECTS.filter(p => p.alertClass === 'b-danger').length;
+  const withEst = ALL_PROJECTS.filter(p => p.estimate);
+  const totalEst = withEst.reduce((s,p) => s + p.estimate, 0);
+  const totalSpent = withEst.reduce((s,p) => s + p.spent, 0);
+  const burnPct = totalEst > 0 ? Math.round((totalSpent/totalEst)*100) : 0;
+  const bl = _burnLevel(burnPct);
+  document.getElementById('overview-metrics').innerHTML =
+    '<div class="mcard dark"><div class="mcard-label">Active projects</div><div class="mcard-val">'+active+'</div><div class="mcard-sub">Across '+ACCOUNTS.length+' accounts</div></div>'
+    + '<div class="mcard"><div class="mcard-label">Need attention</div><div class="mcard-val" style="color:var(--red)">'+atRisk+'</div><div class="mcard-sub">of '+ALL_PROJECTS.length+' projects (red alert)</div></div>'
+    + '<div class="mcard"><div class="mcard-label">Hours burn</div><div class="mcard-val" style="color:var(--'+(bl==='danger'?'red':bl==='warn'?'amber':'green')+')">'+burnPct+'%</div><div class="mcard-sub">'+fmtH(totalSpent)+' / '+fmtH(totalEst)+' h in total</div></div>';
+  document.getElementById('overview-table-body').innerHTML = ALL_PROJECTS.map(p => {
+    const pct = p.estimate ? Math.round((p.spent/p.estimate)*100) : null;
+    const barC = pct === null ? FILL.ok : FILL[_burnLevel(pct)];
+    return '<tr onclick="navigateToProject(\''+p.accountId+'\',\''+p.id+'\')">'
+      + '<td style="font-weight:600">'+_eh(p.name)+'</td>'
+      + '<td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">'+_eh(p.account)+'</td>'
+      + '<td style="font-family:var(--mono);font-size:12px">'+(pct !== null ? fmtH(p.spent)+'/'+fmtH(p.estimate)+' h' : 'No estimate')+'</td>'
+      + '<td>'+(pct !== null ? '<div style="display:flex;align-items:center;gap:8px"><div style="width:55px;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden"><div style="width:'+Math.min(pct,100)+'%;height:100%;background:'+barC+'"></div></div><span style="font-family:var(--mono);font-size:11px;color:var(--text-3)">'+pct+'%</span></div>' : '—')+'</td>'
+      + '<td><span class="badge '+_badgeCls(p.statusClass)+'">'+_eh(p.status)+'</span></td>'
+      + '<td><span class="badge '+_badgeCls(p.alertClass)+'">'+_eh(p.alert)+'</span></td>'
+      + '</tr>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+function switchCardTab(projId, tab, btn) {
+  const card = btn.closest('.pcard');
+  card.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+  card.querySelectorAll('.card-tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`ctab-${projId}-${tab}`).classList.add('active');
+}
+function clearAllNav() {
+  document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+}
+function showOverview() {
+  clearAllNav();
+  document.getElementById('pane-overview').classList.add('active');
+  document.getElementById('btn-overview').classList.add('active');
+  window.scrollTo(0,0);
+}
+function showAccount(accountId) {
+  clearAllNav();
+  const el = document.getElementById('pane-'+accountId);
+  el.classList.add('active');
+  document.getElementById('sb-'+accountId).classList.add('active');
+  requestAnimationFrame(() => { _scrollGanttsToToday(el); _syncRoadmapHeights(el); });
+  window.scrollTo(0,0);
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  document.getElementById('main-content').classList.toggle('expanded');
+}
+function navigateToProject(accountId, projId) {
+  showAccount(accountId);
+  setTimeout(() => {
+    const card = document.getElementById('pcard-' + projId);
+    if (card) card.scrollIntoView({ behavior:'smooth', block:'start' });
+  }, 100);
+}
+// Scroll each roadmap so today is centered. Runs when a pane becomes visible
+// (hidden panes have no layout, so offsets would be 0).
+function _scrollGanttsToToday(container) {
+  container.querySelectorAll('.gantt-wrap').forEach(wrap => {
+    const t = wrap.querySelector('th.is-today');
+    if (!t) return;
+    const x = t.getBoundingClientRect().left - wrap.getBoundingClientRect().left + wrap.scrollLeft;
+    wrap.scrollTo({ left: Math.max(0, x - wrap.clientWidth / 2), behavior: 'instant' });
+  });
+}
+// Align the first roadmap row with the first row of the progress table.
+function _syncRoadmapHeights(container) {
+  container.querySelectorAll('[id^="gantt-outer-"]').forEach(outer => {
+    const projId = outer.id.slice('gantt-outer-'.length);
+    const avWrap = document.getElementById('av-wrap-' + projId);
+    const box = outer.querySelector('.gantt-card');
+    if (!avWrap || !box) return;
+    const stageRows = outer.querySelectorAll('tr.gantt-stage-row');
+    const avtRows = avWrap.querySelectorAll('.avt-row');
+    if (!stageRows.length || !avtRows.length) return;
+    const gs = box.querySelector('.gantt-head-spacer'), as = avWrap.querySelector('.avt-head-spacer');
+    gs.style.height = '0px'; as.style.height = '0px';
+    const diff = (avtRows[0].getBoundingClientRect().top - avWrap.getBoundingClientRect().top)
+      - (stageRows[0].getBoundingClientRect().top - box.getBoundingClientRect().top);
+    if (diff > 0) gs.style.height = diff + 'px'; else if (diff < 0) as.style.height = (-diff) + 'px';
+  });
+}
+
+// ══════════════════════════════════════════════
+// EDIT MODE + COMMENTS
+// ══════════════════════════════════════════════
+function _findProject(id) { return ALL_PROJECTS.find(p => p.id === id); }
+function _editModeActive() { return document.body.classList.contains('edit-mode'); }
+function toggleEditMode() {
+  const on = document.body.classList.toggle('edit-mode');
+  document.getElementById('edit-mode-btn').textContent = on ? '👁 View' : '✏️ Edit';
+  document.querySelectorAll('.edit-only-btn').forEach(b => b.style.display = on ? '' : 'none');
+}
+function showAddComment(projId) { document.getElementById('add-comment-form-'+projId).style.display = ''; }
+function cancelComment(projId) {
+  document.getElementById('add-comment-form-'+projId).style.display = 'none';
+  document.getElementById('nc-date-'+projId).value = '';
+  document.getElementById('nc-text-'+projId).value = '';
+}
+function saveComment(projId) {
+  const text = document.getElementById('nc-text-'+projId).value.trim();
+  if (!text) { alert('A comment cannot be empty.'); return; }
+  const date = document.getElementById('nc-date-'+projId).value.trim() || _todayLabel();
+  const p = _findProject(projId);
+  if (!p.comments) p.comments = [];
+  p.comments.unshift({date: _str(date, 40), text: _str(text)});
+  _rerenderComments(projId);
+  cancelComment(projId);
+  _patchProject(projId, { comments: p.comments });
+}
+function renderCommHtml(projId, comments) {
+  return comments.length
+    ? '<div class="comments-list">'+comments.map((c,i)=>_commentRowHtml(projId,c,i)).join('')+'</div>'
+    : '<div style="font-size:12px;color:var(--text-3)">No comments yet.</div>';
+}
+function _commentRowHtml(projId, c, i) {
+  const disp = _editModeActive() ? '' : 'none';
+  return '<div class="comment-row" id="comment-row-'+projId+'-'+i+'">'
+    + '<div class="comment-row-top"><span class="c-date">'+_eh(c.date)+'</span>'
+    +   '<span class="comment-row-actions">'
+    +     '<button class="edit-only-btn doc-del-btn" onclick="editComment(\''+projId+'\','+i+')" style="display:'+disp+'">✎</button>'
+    +     '<button class="edit-only-btn doc-del-btn" onclick="deleteComment(\''+projId+'\','+i+')" style="display:'+disp+'">✕</button>'
+    +   '</span></div>'
+    + '<span class="c-text">'+_eh(c.text)+'</span></div>';
+}
+function _rerenderComments(projId) {
+  const p = _findProject(projId);
+  document.getElementById('comments-list-'+projId).innerHTML = renderCommHtml(projId, p.comments);
+  const countEl = document.querySelector('#comments-card-'+projId+' .comments-count');
+  if (countEl) countEl.textContent = p.comments.length;
+}
+function editComment(projId, idx) {
+  const c = _findProject(projId).comments[idx];
+  document.getElementById('comment-row-'+projId+'-'+idx).outerHTML = '<div class="comment-row" id="comment-row-'+projId+'-'+idx+'">'
+    + '<input type="text" id="ec-date-'+projId+'-'+idx+'" class="fld" value="'+_eh(c.date)+'">'
+    + '<textarea id="ec-text-'+projId+'-'+idx+'" class="fld" style="resize:vertical;min-height:55px">'+_eh(c.text)+'</textarea>'
+    + '<div style="display:flex;gap:4px"><button class="btn-ok" onclick="saveEditComment(\''+projId+'\','+idx+')">Save</button><button class="btn-cancel" onclick="_rerenderComments(\''+projId+'\')">Cancel</button></div>'
+    + '</div>';
+}
+function saveEditComment(projId, idx) {
+  const text = document.getElementById('ec-text-'+projId+'-'+idx).value.trim();
+  if (!text) { alert('A comment cannot be empty.'); return; }
+  const date = document.getElementById('ec-date-'+projId+'-'+idx).value.trim() || _todayLabel();
+  const p = _findProject(projId);
+  p.comments[idx] = {date: _str(date, 40), text: _str(text)};
+  _rerenderComments(projId);
+  _patchProject(projId, { comments: p.comments });
+}
+function deleteComment(projId, idx) {
+  if (!confirm('Delete this comment?')) return;
+  const p = _findProject(projId);
+  p.comments.splice(idx, 1);
+  _rerenderComments(projId);
+  _patchProject(projId, { comments: p.comments });
+}
+
+// ══════════════════════════════════════════════
+// SCHEDULE METRICS (planned end vs estimated end)
+// ══════════════════════════════════════════════
+function _raid(p) { if (!p.raid) p.raid = { nextSeq: 1, items: [] }; return p.raid; }
+function _planMetrics(p) {
+  const r = p.roadmap;
+  const stages = r && r.stages ? r.stages.filter(s => s.start) : [];
+  let start = null, estEnd = null;
+  stages.forEach(s => {
+    const st = s.start, en = _stageEndInput(s);
+    if (!start || st < start) start = st;
+    if (!estEnd || en > estEnd) estEnd = en;
+  });
+  const plannedEnd = p.plannedEnd || null;
+  const items = _raid(p).items;
+  const changes = items.filter(i => i.type === 'Change');
+  const m = {
+    start, estEnd, plannedEnd, varDays: null, varPct: null,
+    changes: changes.length,
+    changesImpact: changes.reduce((a, i) => a + (Number(i.impact) || 0), 0),
+    closed: !!p.completed || (stages.length > 0 && stages.every(s => s.done)),
+    blocked: items.some(i => i.status !== 'Closed' && (i.type === 'Issue' || i.status === 'Blocked')) || stages.some(s => s.blocked && !s.done)
+  };
+  if (estEnd && plannedEnd) {
+    m.varDays = Math.round((dateLocal(estEnd) - dateLocal(plannedEnd)) / 86400000);
+    const base = start ? Math.round((dateLocal(plannedEnd) - dateLocal(start)) / 86400000) : 0;
+    if (base > 0) m.varPct = m.varDays / base;
+  }
+  return m;
+}
+function _varianceLevel(m) {
+  if (m.varDays === null) return null;
+  const pct = m.varPct !== null ? m.varPct : (m.varDays > 0 ? 1 : 0);
+  return pct * 100 > CONFIG.schedule.redPct ? 'red' : pct * 100 > CONFIG.schedule.amberPct ? 'amber' : 'green';
+}
+function _scheduleBadge(p) {
+  const m = _planMetrics(p);
+  if (m.closed) return '<span class="badge b-gray">Closed</span>';
+  if (!m.estEnd) return '<span class="badge b-gray" title="The roadmap has no dated stages">No dates</span>';
+  if (!m.plannedEnd) return '<span class="badge b-gray" title="Set the planned end in ✏️ Edit roadmap">No planned end</span>';
+  const lvl = _varianceLevel(m);
+  const d = m.varDays;
+  const tip = (d > 0 ? '+' : '') + d + ' d' + (m.varPct !== null ? ' (' + Math.round(m.varPct*100) + '%)' : '')
+    + ' vs planned end ' + _fmtDM(m.plannedEnd) + (m.blocked ? ' · open issue/blocker' : '');
+  const [cls, txt] = (m.blocked || lvl === 'red') ? ['b-danger','🔴 Behind'] : lvl === 'amber' ? ['b-warn','🟡 At risk'] : ['b-ok','🟢 On track'];
+  return '<span class="badge '+cls+'" title="'+_eh(tip)+'">'+txt+'</span>';
+}
+function _semRefresh(p) { const el = document.getElementById('sem-'+p.id); if (el) el.innerHTML = _scheduleBadge(p); }
+function _metricCard(label, val, colorVar, hint) {
+  return '<div class="pend-counter">'
+    + '<div class="pend-counter-label">'+label+'</div>'
+    + '<div class="pend-counter-val"'+(colorVar?' style="color:var(--'+colorVar+')"':'')+'>'+val+'</div>'
+    + (hint ? '<div class="pend-metric-hint">'+hint+'</div>' : '')
+    + '</div>';
+}
+
+// ══════════════════════════════════════════════
+// RAID LOG
+// ══════════════════════════════════════════════
+const _raidFilters = {}, _raidClosedOpen = new Set(), _raidEditing = {}, _raidDeleting = {};
+const RAID_TYPES = ['Action','Risk','Issue','Decision','Change'];
+const RAID_PLURAL = {'Action':'Actions','Risk':'Risks','Issue':'Issues','Decision':'Decisions','Change':'Changes'};
+const RAID_STATUSES = ['Open','In progress','Blocked','Closed'];
+function _eh(s) { return (''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _raidTypeBadge(type, impact) {
+  const cls = type==='Risk'?'b-warn':type==='Issue'?'b-danger':type==='Decision'?'b-violet':type==='Change'?'b-info':'b-gray';
+  const tip = type==='Change' && impact ? ' title="Impact: +'+impact+' d"' : '';
+  return '<span class="badge '+cls+'"'+tip+'>'+_eh(type)+'</span>';
+}
+function _raidStatusBadge(status) {
+  const cls = status==='In progress'?'b-info':status==='Blocked'?'b-warn':status==='Closed'?'b-ok':'b-gray';
+  return '<span class="badge '+cls+'">'+_eh(status)+'</span>';
+}
+function _isOverdue(i) { return i.status !== 'Closed' && i.due && i.due < _todayISO() && i.type !== 'Decision'; }
+function _raidCounts(p) {
+  const open = _raid(p).items.filter(i => i.status !== 'Closed');
+  const byType = {};
+  RAID_TYPES.forEach(t => { byType[t] = open.filter(i => i.type === t).length; });
+  return { byType, overdue: open.filter(_isOverdue).length };
+}
+function _raidVisibleOpen(p, filter) {
+  const items = _raid(p).items.filter(i => i.status !== 'Closed');
+  const filtered = filter === 'overdue' ? items.filter(_isOverdue) : filter ? items.filter(i => i.type === filter) : items;
+  const today = _todayISO();
+  return filtered.slice().sort((a,b) => {
+    const av = !!(a.due && a.due < today), bv = !!(b.due && b.due < today);
+    if (av !== bv) return av ? -1 : 1;
+    if (!a.due && !b.due) return 0;
+    if (!a.due) return 1;
+    if (!b.due) return -1;
+    return a.due < b.due ? -1 : a.due > b.due ? 1 : 0;
+  });
+}
+function _ownerField(idPrefix, selected) {
+  const fixed = CONFIG.raidOwners;
+  const isCustom = !!selected && !fixed.includes(selected);
+  const options = fixed.map(r => '<option value="'+r+'"'+(r===selected?' selected':'')+'>'+r+'</option>').join('')
+    + '<option value="__other__"'+(isCustom?' selected':'')+'>Other…</option>';
+  return '<select id="'+idPrefix+'-sel" onchange="_ownerToggle(\''+idPrefix+'\')">'+options+'</select>'
+    + '<input type="text" id="'+idPrefix+'-txt" placeholder="Owner" value="'+(isCustom?_eh(selected):'')+'" style="margin-top:4px'+(isCustom?'':';display:none')+'">';
+}
+function _ownerToggle(idPrefix) {
+  const sel = document.getElementById(idPrefix+'-sel'), txt = document.getElementById(idPrefix+'-txt');
+  txt.style.display = sel.value === '__other__' ? '' : 'none';
+  if (sel.value === '__other__') txt.focus();
+}
+function _ownerValue(idPrefix) {
+  const sel = document.getElementById(idPrefix+'-sel');
+  return sel.value === '__other__' ? document.getElementById(idPrefix+'-txt').value.trim() : sel.value;
+}
+function _dueCell(item) {
+  if (!item.due) return '<span style="color:var(--text-3)">—</span>';
+  const cls = item.status === 'Closed' ? 'pend-cerrado-fecha' : _isOverdue(item) ? 'pend-vencido' : '';
+  return '<span class="'+cls+'">'+_fmtDM(item.due)+'</span>';
+}
+function _raidRowView(p, item) {
+  return '<tr>'
+    + '<td style="font-family:var(--mono);color:var(--text-3);font-size:11px">'+item.id+'</td>'
+    + '<td class="pend-tarea">'+_eh(item.title)+'</td>'
+    + '<td>'+_raidTypeBadge(item.type, item.impact)+'</td>'
+    + '<td>'+_raidStatusBadge(item.status)+'</td>'
+    + '<td>'+_eh(item.owner||'')+'</td>'
+    + '<td>'+_dueCell(item)+'</td>'
+    + '<td class="pend-actions"><button title="Edit" onclick="raidEditStart(\''+p.id+'\',\''+item.id+'\')">✏️</button><button title="Delete" onclick="raidDeleteAsk(\''+p.id+'\',\''+item.id+'\')">🗑</button></td>'
+    + '</tr>';
+}
+function _raidRowEdit(p, item) {
+  const k = p.id+'-'+item.id;
+  return '<tr>'
+    + '<td style="font-family:var(--mono);color:var(--text-3);font-size:11px">'+item.id+'</td>'
+    + '<td><input type="text" id="raid-e-title-'+k+'" value="'+_eh(item.title)+'" onkeydown="if(event.key===\'Escape\')raidEditCancel(\''+p.id+'\')"></td>'
+    + '<td><select id="raid-e-type-'+k+'" onchange="_raidTypeChanged(\'raid-e-type-'+k+'\',\'raid-e-status-'+k+'\',\'raid-e-imp-'+k+'\')">'+RAID_TYPES.map(t=>'<option'+(t===item.type?' selected':'')+'>'+t+'</option>').join('')+'</select>'
+    +   '<input type="number" min="0" id="raid-e-imp-'+k+'" placeholder="Impact (days)" value="'+(item.impact||'')+'" style="margin-top:4px'+(item.type==='Change'?'':';display:none')+'"></td>'
+    + '<td><select id="raid-e-status-'+k+'">'+RAID_STATUSES.map(t=>'<option'+(t===item.status?' selected':'')+'>'+t+'</option>').join('')+'</select></td>'
+    + '<td>'+_ownerField('raid-e-owner-'+k, item.owner)+'</td>'
+    + '<td><input type="date" id="raid-e-due-'+k+'" value="'+(item.due||'')+'"></td>'
+    + '<td class="pend-actions"><button title="Save" onclick="raidEditSave(\''+p.id+'\',\''+item.id+'\')">✅</button><button title="Cancel" onclick="raidEditCancel(\''+p.id+'\')">✕</button></td>'
+    + '</tr>';
+}
+function _raidRowDelete(p, item) {
+  return '<tr><td colspan="6" style="color:var(--text-2)">Delete "'+_eh(item.title)+'"?</td>'
+    + '<td class="pend-actions"><span class="pend-del-confirm"><button onclick="raidDeleteConfirmed(\''+p.id+'\',\''+item.id+'\')">Yes</button><button onclick="raidDeleteCancel(\''+p.id+'\')">No</button></span></td></tr>';
+}
+function _raidRow(p, item) {
+  return _raidDeleting[p.id] === item.id ? _raidRowDelete(p, item) : _raidEditing[p.id] === item.id ? _raidRowEdit(p, item) : _raidRowView(p, item);
+}
+function buildRaidSection(p) {
+  const data = _raid(p), counts = _raidCounts(p);
+  const filter = _raidFilters[p.id] || null;
+  const openItems = _raidVisibleOpen(p, filter);
+  const closedItems = data.items.filter(i => i.status === 'Closed');
+  const closedOpen = _raidClosedOpen.has(p.id);
+  const m = _planMetrics(p), lvl = _varianceLevel(m);
+  const varVal = m.varDays === null ? '—' : m.varDays <= 0 ? 'On track' : '+'+m.varDays+' d';
+  const crVal = m.changes + ' CR' + (m.changesImpact > 0 ? ' · +'+m.changesImpact+' d' : '');
+  let html = '<div class="pend-section"><div class="pend-counters">'
+    + _metricCard('Planned end', m.plannedEnd ? _fmtDM(m.plannedEnd) : '—', '', m.plannedEnd ? '' : 'Set a planned end')
+    + _metricCard('Estimated end', m.estEnd ? _fmtDM(m.estEnd) : '—', '', '')
+    + _metricCard('Schedule variance', varVal, lvl || '', m.varPct !== null && m.varDays > 0 ? Math.round(m.varPct*100)+'% of the timeline' : '')
+    + _metricCard('Scope changes', crVal, m.changes === 0 ? 'green' : '', '')
+    + '</div>';
+  html += '<div class="pend-header"><div class="pend-title">RAID log</div>'
+    + (counts.overdue > 0 ? '<span class="badge b-danger" style="cursor:pointer" title="Show overdue only" onclick="raidSetFilter(\''+p.id+'\',\'overdue\')">'+counts.overdue+' overdue</span>' : '')
+    + '<div class="pend-chips">'
+    + RAID_TYPES.map(t => { const n = counts.byType[t]; return '<button class="pend-chip'+(filter===t?' active':'')+(n===0?' zero':'')+'" onclick="raidSetFilter(\''+p.id+'\',\''+t+'\')">'+RAID_PLURAL[t]+'<b>'+n+'</b></button>'; }).join('')
+    + '</div></div>';
+  html += '<div class="pend-form">'
+    + '<input type="text" id="raid-new-title-'+p.id+'" placeholder="New item..." onkeydown="if(event.key===\'Enter\')raidAddItem(\''+p.id+'\')">'
+    + '<div><select id="raid-new-type-'+p.id+'" onchange="_raidTypeChanged(\'raid-new-type-'+p.id+'\',\'raid-new-status-'+p.id+'\',\'raid-new-imp-'+p.id+'\')">'+RAID_TYPES.map(t=>'<option>'+t+'</option>').join('')+'</select>'
+    + '<input type="number" min="0" id="raid-new-imp-'+p.id+'" placeholder="Impact (days)" style="margin-top:4px;display:none"></div>'
+    + '<select id="raid-new-status-'+p.id+'">'+RAID_STATUSES.map(t=>'<option'+(t==='Open'?' selected':'')+'>'+t+'</option>').join('')+'</select>'
+    + '<div>'+_ownerField('raid-new-owner-'+p.id, '')+'</div>'
+    + '<input type="date" id="raid-new-due-'+p.id+'">'
+    + '<button class="gantt-ctrl-btn" onclick="raidAddItem(\''+p.id+'\')" title="Add">+</button>'
+    + '<div class="pend-form-err" id="raid-err-'+p.id+'" style="display:none">The item cannot be empty.</div>'
+    + '</div>';
+  html += '<div class="pend-table-wrap"><table class="pend-table"><thead><tr><th>ID</th><th>Item</th><th>Type</th><th>Status</th><th>Owner</th><th>Due</th><th></th></tr></thead><tbody>';
+  html += openItems.length ? openItems.map(i => _raidRow(p, i)).join('') : '<tr class="pend-empty"><td colspan="7">No open items.</td></tr>';
+  if (closedItems.length) {
+    html += '<tr class="pend-cerrados-row" onclick="raidToggleClosed(\''+p.id+'\')"><td colspan="7">'+(closedOpen?'▾':'▸')+' Closed ('+closedItems.length+')</td></tr>';
+    if (closedOpen) html += closedItems.map(i => _raidRow(p, i)).join('');
+  }
+  return html + '</tbody></table></div></div>';
+}
+function _raidRefresh(p) {
+  const el = document.getElementById('raid-outer-'+p.id);
+  if (el) el.innerHTML = buildRaidSection(p);
+  _semRefresh(p);
+}
+function raidSetFilter(projId, key) { _raidFilters[projId] = _raidFilters[projId] === key ? null : key; _raidRefresh(_findProject(projId)); }
+function _raidTypeChanged(typeId, statusId, impId) {
+  const type = document.getElementById(typeId).value;
+  if (type === 'Decision') document.getElementById(statusId).value = 'Closed';
+  document.getElementById(impId).style.display = type === 'Change' ? '' : 'none';
+}
+function _raidImpact(type, inputId) { const v = parseInt(document.getElementById(inputId).value); return type === 'Change' && v > 0 ? v : null; }
+function raidToggleClosed(projId) { if (_raidClosedOpen.has(projId)) _raidClosedOpen.delete(projId); else _raidClosedOpen.add(projId); _raidRefresh(_findProject(projId)); }
+function raidAddItem(projId) {
+  const p = _findProject(projId);
+  const title = document.getElementById('raid-new-title-'+projId).value.trim();
+  const errEl = document.getElementById('raid-err-'+projId);
+  if (!title) { errEl.style.display = ''; return; }
+  const data = _raid(p);
+  const type = document.getElementById('raid-new-type-'+projId).value;
+  const item = {
+    id: 'R-'+String(data.nextSeq).padStart(3,'0'), title: _str(title, 500), type,
+    status: document.getElementById('raid-new-status-'+projId).value,
+    owner: _ownerValue('raid-new-owner-'+projId),
+    due: document.getElementById('raid-new-due-'+projId).value || null,
+    created: _todayISO()
+  };
+  data.nextSeq++;
+  const impact = _raidImpact(type, 'raid-new-imp-'+projId);
+  if (impact) item.impact = impact;
+  data.items.push(item);
+  _raidRefresh(p);
+  _patchProject(projId, { raid: p.raid });
+}
+function raidEditStart(projId, itemId) { _raidEditing[projId] = itemId; _raidDeleting[projId] = null; _raidRefresh(_findProject(projId)); }
+function raidEditCancel(projId) { _raidEditing[projId] = null; _raidRefresh(_findProject(projId)); }
+function raidEditSave(projId, itemId) {
+  const p = _findProject(projId);
+  const item = _raid(p).items.find(i => i.id === itemId);
+  if (!item) return;
+  const k = projId+'-'+itemId;
+  const title = document.getElementById('raid-e-title-'+k).value.trim();
+  if (!title) return;
+  item.title = _str(title, 500);
+  item.type = document.getElementById('raid-e-type-'+k).value;
+  item.status = document.getElementById('raid-e-status-'+k).value;
+  item.owner = _ownerValue('raid-e-owner-'+k);
+  item.due = document.getElementById('raid-e-due-'+k).value || null;
+  const impact = _raidImpact(item.type, 'raid-e-imp-'+k);
+  if (impact) item.impact = impact; else delete item.impact;
+  _raidEditing[projId] = null;
+  _raidRefresh(p);
+  _patchProject(projId, { raid: p.raid });
+}
+function raidDeleteAsk(projId, itemId) { _raidDeleting[projId] = itemId; _raidEditing[projId] = null; _raidRefresh(_findProject(projId)); }
+function raidDeleteCancel(projId) { _raidDeleting[projId] = null; _raidRefresh(_findProject(projId)); }
+function raidDeleteConfirmed(projId, itemId) {
+  const p = _findProject(projId);
+  const data = _raid(p);
+  data.items = data.items.filter(i => i.id !== itemId);
+  _raidDeleting[projId] = null;
+  _raidRefresh(p);
+  _patchProject(projId, { raid: p.raid });
+}
+
+// ══════════════════════════════════════════════
+// ROADMAP EDITOR (working-copy pattern)
+// ══════════════════════════════════════════════
+let _reR = null, _reP = null, _rePlanned = '', _reReason = '';
+const _IST = 'width:100%;box-sizing:border-box;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-family:inherit';
+const _miniBtn = 'font-size:11px;padding:4px 9px;background:var(--surface2);color:var(--text-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit';
+const _secHd = 'font-size:12px;font-weight:700;color:var(--text-2);margin:2px 0 8px';
+function _reSel(onchange, opts, cur) {
+  return '<select onchange="'+onchange+'" style="'+_IST+';width:auto">'+opts.map(o=>'<option value="'+o[0]+'"'+(o[0]===cur?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>';
+}
+function openRoadmapEdit(projId) {
+  const p = _findProject(projId);
+  if (!p) return;
+  if (!p.roadmap) p.roadmap = { stages: [] };
+  _reP = p;
+  _reR = JSON.parse(JSON.stringify(p.roadmap));
+  _reR.stages.forEach(s => { if (!s.end) s.end = _stageEndInput(s); delete s.days; });
+  if (!_reR.milestones) _reR.milestones = [];
+  _rePlanned = p.plannedEnd || '';
+  _reReason = '';
+  document.getElementById('roadmap-edit-title').textContent = 'Edit roadmap — ' + p.name;
+  _renderRoadmapEditor();
+  document.getElementById('roadmap-edit-modal').style.display = 'flex';
+}
+function _renderRoadmapEditor() {
+  const g = _reR;
+  let h = '<div style="'+_secHd+'">Stages</div>';
+  g.stages.forEach((s, i) => {
+    const flag = s.done?'done':s.current?'current':s.blocked?'blocked':'normal';
+    h += '<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px">'
+      + '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'
+      + '<input type="color" value="'+_eh(s.color||'#888888')+'" onchange="_reStageSet('+i+',\'color\',this.value)" style="width:34px;height:30px;border:1px solid var(--border);border-radius:6px;padding:0;cursor:pointer" title="Color">'
+      + '<input type="text" value="'+_eh(s.name||'')+'" placeholder="Stage name" onchange="_reStageSet('+i+',\'name\',this.value)" style="'+_IST+';flex:1">'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+      + '<input type="date" value="'+_eh(s.start||'')+'" onchange="_reStageSet('+i+',\'start\',this.value)" style="'+_IST+';width:auto">'
+      + '<span style="color:var(--text-3)">→</span>'
+      + '<input type="date" value="'+_eh(s.end||'')+'" onchange="_reStageSet('+i+',\'end\',this.value)" style="'+_IST+';width:auto">'
+      + _reSel('_reStageFlag('+i+',this.value)', [['normal','— no flag'],['done','✓ Done'],['current','← Current'],['blocked','⚠ Blocked']], flag)
+      + '</div>'
+      + '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
+      + '<div style="font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Blockers <span style="font-weight:400;text-transform:none;letter-spacing:0">(lost working days, not counted as progress)</span></div>';
+    (s.gaps || []).forEach((gp, gi) => {
+      h += '<div style="display:flex;gap:5px;align-items:center;margin-bottom:5px;flex-wrap:wrap">'
+        + '<input type="date" value="'+_eh(gp.start||'')+'" onchange="_reGapSet('+i+','+gi+',\'start\',this.value)" style="'+_IST+';width:auto">'
+        + '<input type="number" min="1" value="'+_eh(gp.days!==undefined?gp.days:1)+'" onchange="_reGapSet('+i+','+gi+',\'days\',this.value)" style="'+_IST+';width:60px" title="Working days">'
+        + '<span style="font-size:11px;color:var(--text-3)">days</span>'
+        + '<input type="text" value="'+_eh(gp.reason||'')+'" placeholder="Reason (optional)" onchange="_reGapSet('+i+','+gi+',\'reason\',this.value)" style="'+_IST+';flex:1;min-width:120px">'
+        + '<button onclick="_reGapDel('+i+','+gi+')" style="'+_miniBtn+';color:var(--red)">Remove</button>'
+        + '</div>';
+    });
+    h += '<button onclick="_reGapAdd('+i+')" style="'+_miniBtn+'">+ Add blocker</button></div>'
+      + '<div style="display:flex;gap:4px;margin-top:6px;justify-content:flex-end">'
+      + '<button onclick="_reStageMove('+i+',-1)"'+(i===0?' disabled':'')+' style="'+_miniBtn+'">↑</button>'
+      + '<button onclick="_reStageMove('+i+',1)"'+(i===g.stages.length-1?' disabled':'')+' style="'+_miniBtn+'">↓</button>'
+      + '<button onclick="_reStageDel('+i+')" style="'+_miniBtn+';color:var(--red)">Delete</button>'
+      + '</div></div>';
+  });
+  h += '<button onclick="_reStageAdd()" style="'+_miniBtn+';margin-bottom:16px">+ Add stage</button>';
+  h += '<div style="'+_secHd+'">Milestones <span style="font-weight:400;color:var(--text-3)">(highlighted day)</span></div>';
+  g.milestones.forEach((ms, i) => {
+    h += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">'
+      + '<input type="date" value="'+_eh(ms.date||'')+'" onchange="_reMsSet('+i+',\'date\',this.value)" style="'+_IST+';width:auto">'
+      + '<input type="text" value="'+_eh(ms.label||'')+'" placeholder="Label (optional, shown on hover)" onchange="_reMsSet('+i+',\'label\',this.value)" style="'+_IST+';flex:1;min-width:120px">'
+      + '<button onclick="_reMsDel('+i+')" style="'+_miniBtn+';color:var(--red)">Remove</button>'
+      + '</div>';
+  });
+  h += '<button onclick="_reMsAdd()" style="'+_miniBtn+';margin-bottom:16px">+ Add milestone</button>';
+  h += '<div style="'+_secHd+'">Project close <span style="font-weight:400;color:var(--text-3)">(grey line; defaults to the end of the last stage)</span></div>'
+    + '<div style="display:flex;gap:6px;align-items:center;margin-bottom:16px">'
+    + '<input type="date" value="'+_eh(g.closeDate||'')+'" onchange="_reCloseSet(this.value)" style="'+_IST+';width:auto">'
+    + '<button onclick="_reCloseSet(\'\')" style="'+_miniBtn+'">Clear</button>'
+    + '</div>';
+  const prev = _reP.plannedEnd || '';
+  h += '<div style="'+_secHd+'">Planned end <span style="font-weight:400;color:var(--text-3)">(baseline: change it only with an approved rebaseline)</span></div>'
+    + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'
+    + '<input type="date" value="'+_eh(_rePlanned)+'" onchange="_rePlanned=this.value" style="'+_IST+';width:auto">'
+    + (prev ? '<input type="text" value="'+_eh(_reReason)+'" placeholder="Reason for the change (required if you change the date)" onchange="_reReason=this.value" style="'+_IST+';flex:1;min-width:180px">' : '')
+    + '</div>';
+  const hist = _reP.plannedEndHistory || [];
+  h += hist.length
+    ? '<div style="font-size:11px;color:var(--text-3);margin-bottom:16px">'+hist.map(x => _fmtDM(x.date)+': '+_fmtDM(x.previous)+' → '+(x.next?_fmtDM(x.next):'—')+(x.reason?' · '+_eh(x.reason):'')).join('<br>')+'</div>'
+    : '<div style="margin-bottom:16px"></div>';
+  document.getElementById('roadmap-edit-fields').innerHTML = h;
+}
+function _reStageSet(i, f, v) { _reR.stages[i][f] = f === 'name' ? _str(v, 60) : v; }
+function _reStageFlag(i, v) { const s = _reR.stages[i]; delete s.done; delete s.current; delete s.blocked; if (v==='done') s.done=true; else if (v==='current') s.current=true; else if (v==='blocked') s.blocked=true; }
+function _reStageAdd() { const last = _reR.stages[_reR.stages.length-1]; const start = last ? last.end : _todayISO(); _reR.stages.push({name:'New stage', start, end:start, color:STAGES[0].color, gaps:[]}); _renderRoadmapEditor(); }
+function _reStageDel(i) { _reR.stages.splice(i,1); _renderRoadmapEditor(); }
+function _reStageMove(i, d) { const j=i+d, a=_reR.stages; if (j<0||j>=a.length) return; const t=a[i]; a[i]=a[j]; a[j]=t; _renderRoadmapEditor(); }
+function _reGapAdd(si) { const s = _reR.stages[si]; if (!s.gaps) s.gaps = []; s.gaps.push({start:_todayISO(), days:1, reason:''}); _renderRoadmapEditor(); }
+function _reGapSet(si, gi, f, v) { _reR.stages[si].gaps[gi][f] = f === 'days' ? (parseInt(v)||1) : v; }
+function _reGapDel(si, gi) { _reR.stages[si].gaps.splice(gi,1); _renderRoadmapEditor(); }
+function _reMsSet(i, f, v) { _reR.milestones[i][f] = f === 'label' ? v.trim() : v; }
+function _reMsAdd() { _reR.milestones.push({date:_todayISO(), label:''}); _renderRoadmapEditor(); }
+function _reMsDel(i) { _reR.milestones.splice(i,1); _renderRoadmapEditor(); }
+function _reCloseSet(v) { if (v) _reR.closeDate = v; else { delete _reR.closeDate; _renderRoadmapEditor(); } }
+function _closeRoadmapEdit() { document.getElementById('roadmap-edit-modal').style.display = 'none'; _reR = null; _reP = null; }
+function saveRoadmapEdit() {
+  if (!_reP || !_reR) return;
+  const prev = _reP.plannedEnd || '';
+  const changed = _rePlanned !== prev;
+  if (changed && prev && !_reReason.trim()) { alert('To change the planned end, enter a reason (rebaseline).'); return; }
+  _reR.milestones = _reR.milestones.filter(m => m && m.date);
+  if (!_reR.milestones.length) delete _reR.milestones;
+  _reR.stages.forEach(s => { if (s.gaps) s.gaps = s.gaps.filter(gp => gp && gp.start && gp.days > 0); });
+  const p = _reP;
+  p.roadmap = _reR;
+  const patch = { roadmap: p.roadmap };
+  if (changed) {
+    if (prev) {
+      p.plannedEndHistory = (p.plannedEndHistory || []).concat([{ date: _todayISO(), previous: prev, next: _rePlanned || null, reason: _reReason.trim() }]);
+      patch.plannedEndHistory = p.plannedEndHistory;
+    }
+    p.plannedEnd = _rePlanned || null;
+    patch.plannedEnd = p.plannedEnd;
+  }
+  _closeRoadmapEdit();
+  _ganttRefresh(p);
+  _semRefresh(p);
+  _patchProject(p.id, patch);
+}
+
+// ══════════════════════════════════════════════
+// PERSISTENCE — only fields editable from the UI are saved.
+// Everything else (hours, roles, statuses, names) always comes from data/projects.js.
+// ══════════════════════════════════════════════
+const SAVED_FIELDS = ['comments', 'roadmap', 'progress', 'docs', 'raid', 'links', 'plannedEnd', 'plannedEndHistory'];
+// Per-field save: reads the latest saved blob and replaces ONLY the fields in
+// `patch` for this project, so two tabs editing different things don't overwrite each other.
+async function _patchProject(projId, patch) {
+  try {
+    let fresh = null;
+    try { fresh = await Store.read(); } catch (e) { console.warn('Saved data was unreadable and will be replaced', e); }
+    const valid = !!(fresh && typeof fresh === 'object' && fresh.projects && typeof fresh.projects === 'object');
+    const base = valid ? fresh : { version: 1, projects: {}, history: [] };
+    const prevSnapshot = valid ? { updatedAt: fresh.updatedAt, projects: fresh.projects } : null;
+    const history = (prevSnapshot ? [prevSnapshot, ..._arr(fresh.history)] : []).slice(0, CONFIG.storage.historyLimit);
+    const projSnap = { ...(base.projects[projId] || {}) };
+    Object.entries(patch).forEach(([f, v]) => { projSnap[f] = v; });
+    const data = { version: 1, updatedAt: new Date().toISOString(), projects: { ...base.projects, [projId]: projSnap }, history };
+    await Store.write(data);
+    window.__SAVED_DATA = data;
+  } catch (e) {
+    console.error('Save failed:', e);
+    alert('Could not save the change. Try again.');
+  }
+}
+function listSavedVersions() {
+  const ov = window.__SAVED_DATA;
+  if (!ov) { console.log('Nothing saved yet.'); return; }
+  console.table([{n:0, updatedAt: ov.updatedAt, note:'current'}, ...(ov.history||[]).map((h,i)=>({n:i+1, updatedAt:h.updatedAt, note:''}))]);
+  console.log('To go back to a previous version: restoreVersion(N), using the "n" column.');
+}
+async function restoreVersion(n) {
+  const ov = window.__SAVED_DATA;
+  if (!ov) { console.log('Nothing saved yet.'); return; }
+  const snaps = [{updatedAt:ov.updatedAt, projects:ov.projects}, ...(ov.history||[])];
+  const target = snaps[n];
+  if (!target) { console.log('That version does not exist. Run listSavedVersions() to see the available ones.'); return; }
+  if (!confirm('Restore the version from '+target.updatedAt+'? This replaces what is saved now.')) return;
+  const data = { version: 1, updatedAt: new Date().toISOString(), projects: target.projects, history: snaps.filter((_,i) => i !== n).slice(0, CONFIG.storage.historyLimit) };
+  try { await Store.write(data); } catch (e) { console.error(e); alert('Restore failed: '+e.message); return; }
+  alert('Restored. The page will reload.');
+  location.reload();
+}
+function applySavedData() {
+  const ov = window.__SAVED_DATA;
+  if (!ov || !ov.projects) return;
+  ALL_PROJECTS.forEach(p => {
+    const snap = ov.projects[p.id];
+    if (!snap || typeof snap !== 'object') return;
+    SAVED_FIELDS.forEach(f => {
+      if (snap[f] === undefined) return;
+      const clean = _cleanSaved(f, snap[f]);
+      if (clean !== undefined) p[f] = clean;
+    });
+  });
+}
+
+// Badge classes and ids end up in class names, element ids and inline handlers,
+// so only known values are allowed.
+const _BADGES = ['b-ok','b-warn','b-danger','b-info','b-gray','b-violet'];
+function _badgeCls(c) { return _BADGES.includes(c) ? c : 'b-gray'; }
+function _validateData() {
+  const seen = new Set();
+  ACCOUNTS.forEach(a => {
+    if (!_RE_ID.test(a.id)) throw new Error('Invalid account id: ' + a.id);
+    a.projects.forEach(p => {
+      if (!_RE_ID.test(p.id) || seen.has(p.id)) throw new Error('Invalid or duplicated project id: ' + p.id);
+      seen.add(p.id);
+      p.statusClass = _badgeCls(p.statusClass);
+      p.alertClass = _badgeCls(p.alertClass);
+      (p.links || []).forEach(l => { l.url = _safeUrl(l.url) || '#'; });
+    });
+  });
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async function() {
+  _validateData();
+  try {
+    window.__SAVED_DATA = await Store.read();
+  } catch (e) {
+    console.warn('Could not read saved data, using the data file only', e);
+    window.__SAVED_DATA = null;
+  }
+  ALL_PROJECTS.forEach(_derive);
+  applySavedData();
+
+  document.getElementById('sb-accounts').innerHTML = ACCOUNTS.map(a =>
+    '<button class="sb-btn" id="sb-'+a.id+'" onclick="showAccount(\''+a.id+'\')" title="'+_eh(a.name)+'">'
+    + '<span class="sb-dot" style="background:'+(_RE_HEX.test(a.color) ? a.color : '#888888')+'"></span>'
+    + '<span class="sb-label">'+_eh(a.name)+'<span class="sb-sub">'+_eh(a.industry)+'</span></span></button>').join('');
+  document.getElementById('account-panes').innerHTML = ACCOUNTS.map(a => {
+    const active = a.projects.filter(p => !p.completed), done = a.projects.filter(p => p.completed);
+    return '<div id="pane-'+a.id+'" class="pane">'
+      + '<div class="topbar"><div><div class="topbar-title">'+_eh(a.name)+'</div><div class="topbar-sub">'+_eh(a.industry)+' · Roadmap · Hours · RAID · Links</div></div></div>'
+      + '<div id="flt-'+a.id+'" class="flt-chip-bar" data-grid="cards-'+a.id+'"></div>'
+      + '<div class="cards-grid" id="cards-'+a.id+'">'
+      +   active.map(buildCard).join('')
+      +   (done.length ? '<div class="section-sep">Completed projects</div>' + done.map(buildCard).join('') : '')
+      + '</div></div>';
+  }).join('');
+  ACCOUNTS.forEach(a => renderStatusChips('flt-'+a.id, a.projects));
+  buildOverview();
+});
+</script>
+</body></html>

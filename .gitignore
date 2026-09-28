@@ -1,0 +1,19 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Local tooling and AI assistant context (never publish)
+.claude/
+CLAUDE.md
+*.local.*
+.env
+.env.*
+
+# Logs
+*.log
