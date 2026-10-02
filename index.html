@@ -6,6 +6,14 @@
 <meta name="referrer" content="no-referrer">
 <title>Automation PM Dashboard</title>
 <meta name="description" content="Open-source project tracking dashboard for automation PMs: roadmap, hours burn, RAID log and schedule variance. Demo data is fictional.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Automation PM Dashboard — open-source template">
+<meta property="og:description" content="Roadmap, hours burn, RAID log and schedule variance for automation projects in one static page. Live demo with fictional data.">
+<meta property="og:url" content="https://lenumiranda.github.io/pm-dashboard-public/">
+<meta property="og:image" content="https://lenumiranda.github.io/pm-dashboard-public/docs/screenshots/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
 <style>
 :root {
@@ -158,7 +166,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); colo
 .gantt-wrap { overflow-x:auto; margin-bottom:2px; scroll-behavior:smooth; }
 .gantt-card { border:1px solid var(--border); border-radius:var(--radius-lg); padding:14px; }
 .roadmap-avance-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start; }
-@media(max-width:1100px){ .roadmap-avance-grid{grid-template-columns:1fr;} }
+@media(max-width:1100px){ .roadmap-avance-grid{grid-template-columns:minmax(0,1fr);} }
 .gantt-table { border-collapse:collapse; }
 .gantt-table th { font-size:10px; font-weight:500; color:var(--text-3); text-align:center; padding:5px 1px; white-space:nowrap; border-bottom:1px solid var(--border); }
 .gantt-table th.stage-col { text-align:left; min-width:110px; font-weight:700; font-size:11px; color:var(--text-2); padding-left:0; position:sticky; left:0; background:var(--surface); z-index:6; }
@@ -352,14 +360,17 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); colo
 <main class="main" id="main-content">
   <div id="pane-overview" class="pane active">
     <div class="topbar">
-      <div><div class="topbar-title">Portfolio</div><div class="topbar-sub">All accounts · active and completed projects</div></div>
+      <div><div class="topbar-title">Portfolio</div><div class="topbar-sub">Weekly status of active projects · all accounts</div></div>
       <div class="demo-note">Demo data · edits are saved in this browser only</div>
     </div>
     <div class="metrics" id="overview-metrics"></div>
-    <div class="sec-title">Projects</div>
-    <div class="section-card">
+    <div class="sec-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">Active projects
+      <button class="gantt-ctrl-btn" onclick="exportOverviewPng()" style="margin-left:auto">📷 Export PNG</button>
+      <button class="gantt-ctrl-btn edit-only-btn" onclick="_ovOrderReset()" style="display:none">↺ Automatic order</button>
+    </div>
+    <div class="section-card" id="ov-card">
       <table class="ov-table">
-        <thead><tr><th>Project</th><th>Account</th><th>Hours</th><th>Burn</th><th>Status</th><th>Alert</th></tr></thead>
+        <thead><tr><th>Account</th><th>Project</th><th>Burn</th><th>Progress</th><th>Schedule</th><th>Est. end</th><th>Alerts</th><th>Comment</th></tr></thead>
         <tbody id="overview-table-body"></tbody>
       </table>
     </div>
@@ -420,6 +431,7 @@ function _cleanSaved(f, v) {
     case 'links': return _arr(v).map(l => ({ type: _LINK_TYPES[l && l.type] ? l.type : 'backlog', name: _str(l && l.name, 100), url: _safeUrl(l && l.url) })).filter(l => l.url);
     case 'progress': { const o = {}; STAGES.forEach(s => { o[s.key] = Math.round(_num(v && v[s.key], 0, 100)); }); return o; }
     case 'plannedEnd': return _isoOrNull(v);
+    case 'portfolioComment': return _str(v, 1000);
     case 'plannedEndHistory': return _arr(v).map(h => ({ date: _isoOrNull(h && h.date), previous: _isoOrNull(h && h.previous), next: _isoOrNull(h && h.next), reason: _str(h && h.reason, 300) })).filter(h => h.date && h.previous);
     case 'raid': {
       const items = _arr(v && v.items).map(i => ({
@@ -1154,30 +1166,195 @@ function buildCard(p) {
 // ══════════════════════════════════════════════
 // PORTFOLIO (OVERVIEW)
 // ══════════════════════════════════════════════
+// Weekly status view: PMO cards + a table of active projects (completed or
+// fully closed projects are left out). Default order: 🔴 → 🟡 → 🟢 → no plan,
+// then by account; a manual order (▲▼ in Edit mode) takes priority.
+const _OV_LEVEL_ORDER = { red:0, amber:1, green:2, noplan:3, nodates:4 };
+let _ovOrder = [], _ovIds = [];
 function buildOverview() {
-  const active = ALL_PROJECTS.filter(p => !p.completed).length;
-  const atRisk = ALL_PROJECTS.filter(p => p.alertClass === 'b-danger').length;
-  const withEst = ALL_PROJECTS.filter(p => p.estimate);
-  const totalEst = withEst.reduce((s,p) => s + p.estimate, 0);
-  const totalSpent = withEst.reduce((s,p) => s + p.spent, 0);
-  const burnPct = totalEst > 0 ? Math.round((totalSpent/totalEst)*100) : 0;
-  const bl = _burnLevel(burnPct);
+  const rows = ALL_PROJECTS.map(p => ({ p, sch: _scheduleInfo(p) }))
+    .filter(r => !r.p.completed && r.sch.level !== 'closed');
+  rows.forEach((r, i) => r.i = i);
+  rows.sort((a, b) => _OV_LEVEL_ORDER[a.sch.level] - _OV_LEVEL_ORDER[b.sch.level] || a.p.account.localeCompare(b.p.account) || a.i - b.i);
+  if (_ovOrder.length) {
+    const pos = id => { const k = _ovOrder.indexOf(id); return k < 0 ? Infinity : k; };
+    rows.forEach((r, i) => r.j = i);
+    rows.sort((a, b) => (pos(a.p.id) - pos(b.p.id)) || a.j - b.j);
+  }
+  _ovIds = rows.map(r => r.p.id);
+  const editOn = _editModeActive();
+  const cnt = lvl => rows.filter(r => r.sch.level === lvl).length;
+  const noBase = cnt('noplan') + cnt('nodates');
+  const total = rows.length;
+  const unit = t => '<span style="font-size:13px;font-weight:500;letter-spacing:0;color:var(--text-2)"> '+t+'</span>';
+  const share = (n, fill) => '<div style="height:5px;background:var(--surface2);border-radius:3px" title="'+n+' of '+total+' projects"><div style="width:'+(total ? n/total*100 : 0)+'%;height:100%;background:'+fill+';border-radius:3px"></div></div>';
+  // Hours: projects above their estimate, and the extra hours across all of them
+  const over = rows.filter(r => r.p.estimate && r.p.spent > r.p.estimate);
+  const extraH = Math.round(over.reduce((s, r) => s + r.p.spent - r.p.estimate, 0));
+  // Schedule: projects past the end of their roadmap, and the worst variance vs planned end
+  const offPlan = rows.filter(r => { const f = _ovPhase(r.p); return f && f.offPlan; }).length;
+  const worst = rows.filter(r => r.sch.m.varDays !== null).sort((a, b) => b.sch.m.varDays - a.sch.m.varDays)[0];
+  // To decide: open decisions and issues in the RAID logs
+  let decisions = 0, issues = 0; const withRaid = new Set();
+  rows.forEach(r => _raid(r.p).items.forEach(i => {
+    if (i.status === 'Closed') return;
+    if (i.type === 'Decision') { decisions++; withRaid.add(r.p.id); }
+    else if (i.type === 'Issue') { issues++; withRaid.add(r.p.id); }
+  }));
+  const segs = [['danger','behind',cnt('red')],['warn','at risk',cnt('amber')],['ok','on track',cnt('green')],['gray','no planned end',noBase]];
+  const healthBar = '<div style="display:flex;gap:2px;height:5px">' + segs.filter(s => s[2] > 0)
+    .map(s => '<div title="'+s[2]+' '+s[1]+'" style="flex:'+s[2]+';background:'+(s[0]==='gray' ? '#94A3B8' : FILL[s[0]])+';border-radius:3px"></div>').join('') + '</div>';
+  const dot = c => '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+FILL[c]+';margin-right:4px"></span>';
   document.getElementById('overview-metrics').innerHTML =
-    '<div class="mcard dark"><div class="mcard-label">Active projects</div><div class="mcard-val">'+active+'</div><div class="mcard-sub">Across '+ACCOUNTS.length+' accounts</div></div>'
-    + '<div class="mcard"><div class="mcard-label">Need attention</div><div class="mcard-val" style="color:var(--red)">'+atRisk+'</div><div class="mcard-sub">of '+ALL_PROJECTS.length+' projects (red alert)</div></div>'
-    + '<div class="mcard"><div class="mcard-label">Hours burn</div><div class="mcard-val" style="color:var(--'+(bl==='danger'?'red':bl==='warn'?'amber':'green')+')">'+burnPct+'%</div><div class="mcard-sub">'+fmtH(totalSpent)+' / '+fmtH(totalEst)+' h in total</div></div>';
-  document.getElementById('overview-table-body').innerHTML = ALL_PROJECTS.map(p => {
+    _ovMcard('Health', cnt('red') + unit('behind'), dot('warn')+cnt('amber')+' at risk · '+dot('ok')+cnt('green')+' on track · '+noBase+' no planned end', healthBar)
+    + _ovMcard('Hours', over.length + unit('over estimate'), '+'+extraH.toLocaleString('en-US')+' h above estimate, in total', share(over.length, FILL.danger))
+    + _ovMcard('Schedule', offPlan + unit('past roadmap end'),
+        worst && worst.sch.m.varDays > 0 ? 'Worst variance: +'+worst.sch.m.varDays+' d · '+_eh(worst.p.name) : 'No variance vs planned end',
+        share(offPlan, FILL.warn))
+    + _ovMcard('To decide', (decisions + issues) + unit('open'), decisions+(decisions===1?' decision':' decisions')+' · '+issues+(issues===1?' issue':' issues')+' · in '+withRaid.size+(withRaid.size===1?' project':' projects'), '');
+
+  const mono = 'font-family:var(--mono);';
+  document.getElementById('overview-table-body').innerHTML = rows.map(({ p, sch }) => {
     const pct = p.estimate ? Math.round((p.spent/p.estimate)*100) : null;
-    const barC = pct === null ? FILL.ok : FILL[_burnLevel(pct)];
+    const burnFill = pct === null ? FILL.ok : FILL[_burnLevel(pct)];
+    const rm = roadmapProgressPct(p);
+    const m = sch.m;
+    const burnHtml = pct !== null
+      ? '<div style="display:flex;align-items:center;gap:8px">'+_ovRing(pct, burnFill)
+        + '<div style="'+mono+'font-size:11px;color:var(--text-2);line-height:1.3;white-space:nowrap">'+fmtH(p.spent)+'<br><span style="color:var(--text-3)">/ '+fmtH(p.estimate)+' h</span></div></div>'
+      : '<span style="'+mono+'font-size:12px;color:var(--text-3)">No estimate</span>';
+    // Roadmap progress bar with a vertical mark at the hours burn %, plus the current stage
+    const progHtml = rm !== null
+      ? '<div title="Roadmap '+rm+'%'+(pct !== null ? ' · Hours burn '+pct+'% (mark)' : '')+'" style="display:flex;align-items:center;gap:8px">'
+        + '<div style="position:relative;width:56px;height:6px;background:var(--surface2);border-radius:3px">'
+        +   '<div style="width:'+rm+'%;height:100%;background:var(--accent);border-radius:3px"></div>'
+        +   (pct !== null ? '<div style="position:absolute;top:-3px;left:calc('+Math.min(pct,100)+'% - 1px);width:2px;height:12px;background:var(--text);border-radius:1px"></div>' : '')
+        + '</div><span style="'+mono+'font-size:12px">'+rm+'%</span></div>'
+      : '<span style="'+mono+'font-size:12px">—</span>';
+    let endHtml = '<span style="color:var(--text-3)">—</span>', endTip = '';
+    if (m.estEnd) {
+      const d = m.varDays, lvl = _varianceLevel(m);
+      endHtml = '<div style="'+mono+'font-size:12px">'+_fmtDM(m.estEnd)+'</div><div style="margin-top:3px">'
+        + (d !== null ? _ovChip(lvl === 'red' ? 'b-danger' : lvl === 'amber' ? 'b-warn' : 'b-ok', (d > 0 ? '+' : '') + d + ' d') : '<span style="font-size:11px;color:var(--text-3)" title="No planned end: variance cannot be calculated">—</span>')
+        + '</div>';
+      endTip = m.plannedEnd ? 'Planned end ' + _fmtDM(m.plannedEnd) : 'No planned end';
+    }
+    // Alerts: one chip per topic, calculated from the RAID log, roles and hours
+    const open = _raid(p).items.filter(i => i.status !== 'Closed');
+    const nIssues = open.filter(i => i.type === 'Issue').length;
+    const nDecisions = open.filter(i => i.type === 'Decision').length;
+    const nOver = p.roles.filter(_roleIsOver).length;
+    const chips = [];
+    if (nIssues) chips.push(_ovChip('b-danger', nIssues + (nIssues===1 ? ' open issue' : ' open issues')));
+    if (nDecisions) chips.push(_ovChip('b-violet', nDecisions + (nDecisions===1 ? ' open decision' : ' open decisions')));
+    if (nOver) chips.push(_ovChip('b-danger', nOver + (nOver===1 ? ' role over budget' : ' roles over budget')));
+    if (pct !== null) chips.push(pct > 100 ? _ovChip('b-danger', (pct-100)+'% over') : _ovChip(_burnLevel(pct) === 'warn' ? 'b-warn' : 'b-gray', (100-pct)+'% left'));
     return '<tr onclick="navigateToProject(\''+p.accountId+'\',\''+p.id+'\')">'
-      + '<td style="font-weight:600">'+_eh(p.name)+'</td>'
-      + '<td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">'+_eh(p.account)+'</td>'
-      + '<td style="font-family:var(--mono);font-size:12px">'+(pct !== null ? fmtH(p.spent)+'/'+fmtH(p.estimate)+' h' : 'No estimate')+'</td>'
-      + '<td>'+(pct !== null ? '<div style="display:flex;align-items:center;gap:8px"><div style="width:55px;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden"><div style="width:'+Math.min(pct,100)+'%;height:100%;background:'+barC+'"></div></div><span style="font-family:var(--mono);font-size:11px;color:var(--text-3)">'+pct+'%</span></div>' : '—')+'</td>'
-      + '<td><span class="badge '+_badgeCls(p.statusClass)+'">'+_eh(p.status)+'</span></td>'
-      + '<td><span class="badge '+_badgeCls(p.alertClass)+'">'+_eh(p.alert)+'</span></td>'
+      + '<td style="'+mono+'font-size:11px;color:var(--text-3);white-space:nowrap">'
+      +   '<span class="edit-only-btn" onclick="event.stopPropagation()" style="display:'+(editOn?'':'none')+';margin-right:6px">'
+      +     '<button class="doc-del-btn" onclick="_ovMove(\''+p.id+'\',-1)" title="Move up">▲</button> '
+      +     '<button class="doc-del-btn" onclick="_ovMove(\''+p.id+'\',1)" title="Move down">▼</button>'
+      +   '</span>'+_eh(p.account)+'</td>'
+      + '<td style="font-weight:600;min-width:160px">'+_eh(p.name)+'</td>'
+      + '<td>'+burnHtml+'</td>'
+      + '<td>'+progHtml+_ovStageLine(p)+'</td>'
+      + '<td><span class="badge '+sch.cls+'"'+(sch.tip ? ' title="'+_eh(sch.tip)+'"' : '')+'>'+sch.txt+'</span></td>'
+      + '<td style="white-space:nowrap"'+(endTip ? ' title="'+_eh(endTip)+'"' : '')+'>'+endHtml+'</td>'
+      + '<td style="max-width:200px"><div style="display:flex;flex-wrap:wrap;gap:4px">'+(chips.length ? chips.join('') : _ovChip('b-ok','No alerts'))+'</div></td>'
+      + '<td id="ov-com-'+p.id+'" onclick="event.stopPropagation()" style="cursor:default;min-width:160px">'+_ovComView(p)+'</td>'
       + '</tr>';
-  }).join('');
+  }).join('') || '<tr><td colspan="8" style="color:var(--text-3)">No active projects.</td></tr>';
+}
+function _ovMcard(label, val, sub, foot) {
+  return '<div class="mcard" style="display:flex;flex-direction:column">'
+    + '<div class="mcard-label">'+label+'</div><div class="mcard-val">'+val+'</div><div class="mcard-sub">'+sub+'</div>'
+    + '<div style="margin-top:auto;padding-top:12px">'+(foot || '<div style="height:5px"></div>')+'</div></div>';
+}
+function _ovChip(cls, txt) { return '<span class="badge '+cls+'" style="white-space:nowrap">'+_eh(txt)+'</span>'; }
+// Circular burn meter with the % in the middle.
+function _ovRing(pct, color) {
+  const r = 19, c = 2 * Math.PI * r, f = Math.min(pct, 100) / 100;
+  return '<svg width="46" height="46" viewBox="0 0 46 46" style="flex:none" role="img" aria-label="Burn '+pct+'%">'
+    + '<circle cx="23" cy="23" r="'+r+'" fill="none" stroke="'+color+'" stroke-opacity=".18" stroke-width="4"/>'
+    + '<circle cx="23" cy="23" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="4" stroke-linecap="round" stroke-dasharray="'+(c*f).toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 23 23)"/>'
+    + '<text x="23" y="26.5" text-anchor="middle" style="font:600 10px \'Plus Jakarta Sans\',sans-serif;fill:var(--text)">'+pct+'%</text>'
+    + '</svg>';
+}
+// Current stage by date: the last stage that has started. "Past roadmap end" only
+// when it is the last stage, its end date has passed and it is not marked as done.
+function _ovPhase(p) {
+  const st = (p.roadmap && p.roadmap.stages || []).filter(x => x.start).slice().sort((a, b) => dateLocal(a.start) - dateLocal(b.start));
+  if (!st.length) return null;
+  const s = st.filter(x => dateLocal(x.start) <= TODAY).pop();
+  if (!s) return { name: 'Not started', offPlan: false };
+  const end = _stageEndInput(s);
+  return { name: s.name, end, offPlan: s === st[st.length-1] && !s.done && dateLocal(end) < TODAY };
+}
+function _ovStageLine(p) {
+  const f = _ovPhase(p);
+  if (!f) return '';
+  return '<div style="font-size:11px;color:var(--text-3);margin-top:4px;white-space:nowrap"'+(f.offPlan ? ' title="Should have ended on '+_fmtDM(f.end)+'"' : '')+'>'
+    + _eh(f.name)+(f.offPlan ? ' · past roadmap end' : '')+'</div>';
+}
+// Weekly comment per project (editable in Edit mode, saved as portfolioComment)
+function _ovComView(p) {
+  return '<div style="display:flex;gap:6px;align-items:flex-start">'
+    + '<div style="font-size:12px;color:var(--text-2);white-space:pre-wrap;flex:1">'+_eh(p.portfolioComment || '')+'</div>'
+    + '<button class="edit-only-btn doc-del-btn" onclick="_ovComEdit(\''+p.id+'\')" title="Edit comment" style="display:'+(_editModeActive()?'':'none')+'">✏️</button>'
+    + '</div>';
+}
+function _ovComEdit(projId) {
+  const p = _findProject(projId);
+  document.getElementById('ov-com-'+projId).innerHTML =
+    '<textarea id="ov-com-txt-'+projId+'" class="fld" maxlength="1000" style="resize:vertical;min-height:55px">'+_eh(p.portfolioComment || '')+'</textarea>'
+    + '<div style="display:flex;gap:4px;margin-top:4px"><button class="btn-ok" onclick="_ovComSave(\''+projId+'\')">Save</button>'
+    + '<button class="btn-cancel" onclick="document.getElementById(\'ov-com-'+projId+'\').innerHTML=_ovComView(_findProject(\''+projId+'\'))">Cancel</button></div>';
+  document.getElementById('ov-com-txt-'+projId).focus();
+}
+function _ovComSave(projId) {
+  const p = _findProject(projId);
+  p.portfolioComment = _str(document.getElementById('ov-com-txt-'+projId).value.trim(), 1000);
+  document.getElementById('ov-com-'+projId).innerHTML = _ovComView(p);
+  _patchProject(projId, { portfolioComment: p.portfolioComment });
+}
+// Manual order of the table (saved as meta.portfolioOrder)
+function _ovMove(id, dir) {
+  const ids = _ovIds.slice(), i = ids.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return;
+  ids[i] = ids[j]; ids[j] = id;
+  _ovOrder = ids;
+  buildOverview();
+  _patchMeta('portfolioOrder', ids);
+}
+function _ovOrderReset() {
+  if (!confirm('Go back to the automatic order (🔴 → 🟡 → 🟢, by account)?')) return;
+  _ovOrder = [];
+  buildOverview();
+  _patchMeta('portfolioOrder', []);
+}
+// Export the projects table as a PNG with today's date in the title.
+function exportOverviewPng() {
+  const card = document.getElementById('ov-card');
+  if (!card) return;
+  const title = 'Active projects · ' + _todayLabel() + ' ' + TODAY.getFullYear();
+  html2canvas(card, {
+    backgroundColor: getComputedStyle(document.body).backgroundColor, scale: 2, useCORS: true,
+    width: card.scrollWidth, windowWidth: Math.max(document.documentElement.clientWidth, card.scrollWidth + 400),
+    ignoreElements: el => el.classList && el.classList.contains('edit-only-btn'),
+    onclone: doc => {
+      const c = doc.getElementById('ov-card');
+      c.style.overflow = 'visible';
+      const h = doc.createElement('div');
+      h.style.cssText = 'padding:14px 14px 4px;font-size:13px;font-weight:700;color:var(--text)';
+      h.textContent = title;
+      c.insertBefore(h, c.firstChild);
+    }
+  }).then(canvas => {
+    const a = document.createElement('a');
+    a.download = 'portfolio-' + _todayISO() + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  });
 }
 
 // ══════════════════════════════════════════════
@@ -1355,17 +1532,23 @@ function _varianceLevel(m) {
   const pct = m.varPct !== null ? m.varPct : (m.varDays > 0 ? 1 : 0);
   return pct * 100 > CONFIG.schedule.redPct ? 'red' : pct * 100 > CONFIG.schedule.amberPct ? 'amber' : 'green';
 }
-function _scheduleBadge(p) {
+// Schedule level of a project: closed, nodates, noplan, red, amber or green.
+function _scheduleInfo(p) {
   const m = _planMetrics(p);
-  if (m.closed) return '<span class="badge b-gray">Closed</span>';
-  if (!m.estEnd) return '<span class="badge b-gray" title="The roadmap has no dated stages">No dates</span>';
-  if (!m.plannedEnd) return '<span class="badge b-gray" title="Set the planned end in ✏️ Edit roadmap">No planned end</span>';
+  if (m.closed) return { m, level:'closed', cls:'b-gray', txt:'Closed', tip:'' };
+  if (!m.estEnd) return { m, level:'nodates', cls:'b-gray', txt:'No dates', tip:'The roadmap has no dated stages' };
+  if (!m.plannedEnd) return { m, level:'noplan', cls:'b-gray', txt:'No planned end', tip:'Set the planned end in ✏️ Edit roadmap' };
   const lvl = _varianceLevel(m);
   const d = m.varDays;
   const tip = (d > 0 ? '+' : '') + d + ' d' + (m.varPct !== null ? ' (' + Math.round(m.varPct*100) + '%)' : '')
     + ' vs planned end ' + _fmtDM(m.plannedEnd) + (m.blocked ? ' · open issue/blocker' : '');
-  const [cls, txt] = (m.blocked || lvl === 'red') ? ['b-danger','🔴 Behind'] : lvl === 'amber' ? ['b-warn','🟡 At risk'] : ['b-ok','🟢 On track'];
-  return '<span class="badge '+cls+'" title="'+_eh(tip)+'">'+txt+'</span>';
+  if (m.blocked || lvl === 'red') return { m, level:'red', cls:'b-danger', txt:'🔴 Behind', tip };
+  if (lvl === 'amber') return { m, level:'amber', cls:'b-warn', txt:'🟡 At risk', tip };
+  return { m, level:'green', cls:'b-ok', txt:'🟢 On track', tip };
+}
+function _scheduleBadge(p) {
+  const s = _scheduleInfo(p);
+  return '<span class="badge '+s.cls+'"'+(s.tip ? ' title="'+_eh(s.tip)+'"' : '')+'>'+s.txt+'</span>';
 }
 function _semRefresh(p) { const el = document.getElementById('sem-'+p.id); if (el) el.innerHTML = _scheduleBadge(p); }
 function _metricCard(label, val, colorVar, hint) {
@@ -1696,26 +1879,33 @@ function saveRoadmapEdit() {
 // PERSISTENCE — only fields editable from the UI are saved.
 // Everything else (hours, roles, statuses, names) always comes from data/projects.js.
 // ══════════════════════════════════════════════
-const SAVED_FIELDS = ['comments', 'roadmap', 'progress', 'docs', 'raid', 'links', 'plannedEnd', 'plannedEndHistory'];
-// Per-field save: reads the latest saved blob and replaces ONLY the fields in
-// `patch` for this project, so two tabs editing different things don't overwrite each other.
-async function _patchProject(projId, patch) {
+const SAVED_FIELDS = ['comments', 'roadmap', 'progress', 'docs', 'raid', 'links', 'plannedEnd', 'plannedEndHistory', 'portfolioComment'];
+// Reads the latest saved blob, lets `apply` change only what it needs, and writes it back,
+// so two tabs editing different things don't overwrite each other.
+async function _saveBlob(apply) {
   try {
     let fresh = null;
     try { fresh = await Store.read(); } catch (e) { console.warn('Saved data was unreadable and will be replaced', e); }
     const valid = !!(fresh && typeof fresh === 'object' && fresh.projects && typeof fresh.projects === 'object');
-    const base = valid ? fresh : { version: 1, projects: {}, history: [] };
-    const prevSnapshot = valid ? { updatedAt: fresh.updatedAt, projects: fresh.projects } : null;
+    const base = valid ? fresh : { version: 1, projects: {}, meta: {}, history: [] };
+    const prevSnapshot = valid ? { updatedAt: fresh.updatedAt, projects: fresh.projects, meta: fresh.meta || {} } : null;
     const history = (prevSnapshot ? [prevSnapshot, ..._arr(fresh.history)] : []).slice(0, CONFIG.storage.historyLimit);
-    const projSnap = { ...(base.projects[projId] || {}) };
-    Object.entries(patch).forEach(([f, v]) => { projSnap[f] = v; });
-    const data = { version: 1, updatedAt: new Date().toISOString(), projects: { ...base.projects, [projId]: projSnap }, history };
+    const data = { version: 1, updatedAt: new Date().toISOString(), projects: { ...base.projects }, meta: { ...(base.meta || {}) }, history };
+    apply(data);
     await Store.write(data);
     window.__SAVED_DATA = data;
   } catch (e) {
     console.error('Save failed:', e);
     alert('Could not save the change. Try again.');
   }
+}
+// Per-field save for one project.
+function _patchProject(projId, patch) {
+  return _saveBlob(d => { d.projects[projId] = { ...(d.projects[projId] || {}), ...patch }; });
+}
+// Dashboard-level settings that don't belong to a project (e.g. the portfolio order).
+function _patchMeta(key, value) {
+  return _saveBlob(d => { d.meta[key] = value; });
 }
 function listSavedVersions() {
   const ov = window.__SAVED_DATA;
@@ -1726,11 +1916,11 @@ function listSavedVersions() {
 async function restoreVersion(n) {
   const ov = window.__SAVED_DATA;
   if (!ov) { console.log('Nothing saved yet.'); return; }
-  const snaps = [{updatedAt:ov.updatedAt, projects:ov.projects}, ...(ov.history||[])];
+  const snaps = [{updatedAt:ov.updatedAt, projects:ov.projects, meta:ov.meta || {}}, ...(ov.history||[])];
   const target = snaps[n];
   if (!target) { console.log('That version does not exist. Run listSavedVersions() to see the available ones.'); return; }
   if (!confirm('Restore the version from '+target.updatedAt+'? This replaces what is saved now.')) return;
-  const data = { version: 1, updatedAt: new Date().toISOString(), projects: target.projects, history: snaps.filter((_,i) => i !== n).slice(0, CONFIG.storage.historyLimit) };
+  const data = { version: 1, updatedAt: new Date().toISOString(), projects: target.projects, meta: target.meta || {}, history: snaps.filter((_,i) => i !== n).slice(0, CONFIG.storage.historyLimit) };
   try { await Store.write(data); } catch (e) { console.error(e); alert('Restore failed: '+e.message); return; }
   alert('Restored. The page will reload.');
   location.reload();
@@ -1738,6 +1928,8 @@ async function restoreVersion(n) {
 function applySavedData() {
   const ov = window.__SAVED_DATA;
   if (!ov || !ov.projects) return;
+  const order = ov.meta && ov.meta.portfolioOrder;
+  _ovOrder = _arr(order).filter(id => typeof id === 'string' && _RE_ID.test(id) && _findProject(id));
   ALL_PROJECTS.forEach(p => {
     const snap = ov.projects[p.id];
     if (!snap || typeof snap !== 'object') return;
@@ -1749,10 +1941,7 @@ function applySavedData() {
   });
 }
 
-// Badge classes and ids end up in class names, element ids and inline handlers,
-// so only known values are allowed.
-const _BADGES = ['b-ok','b-warn','b-danger','b-info','b-gray','b-violet'];
-function _badgeCls(c) { return _BADGES.includes(c) ? c : 'b-gray'; }
+// Ids end up in element ids and inline handlers, so only safe values are allowed.
 function _validateData() {
   const seen = new Set();
   ACCOUNTS.forEach(a => {
@@ -1760,8 +1949,6 @@ function _validateData() {
     a.projects.forEach(p => {
       if (!_RE_ID.test(p.id) || seen.has(p.id)) throw new Error('Invalid or duplicated project id: ' + p.id);
       seen.add(p.id);
-      p.statusClass = _badgeCls(p.statusClass);
-      p.alertClass = _badgeCls(p.alertClass);
       (p.links || []).forEach(l => { l.url = _safeUrl(l.url) || '#'; });
     });
   });

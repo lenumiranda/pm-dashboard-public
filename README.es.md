@@ -6,11 +6,10 @@ Template de dashboard de una sola página para project managers de proyectos de 
 
 Funciona como sitio estático: sin build, sin backend y sin instalación. La demo trae **datos ficticios** (cuatro cuentas inventadas de retail y logística, nueve proyectos).
 
-> **Demo online:** _agregá acá el link de GitHub Pages_
->
-> ![Vista de portfolio](docs/screenshots/portfolio.png)
-> ![Card de proyecto](docs/screenshots/project-card.png)
-> _Capturas: agregalas en `docs/screenshots/`._
+**Demo online:** https://lenumiranda.github.io/pm-dashboard-public/
+
+![Vista de portfolio](docs/screenshots/portfolio.png)
+![Card de proyecto](docs/screenshots/project-card.png)
 
 ## Qué problema resuelve
 
@@ -27,9 +26,16 @@ En los proyectos de automatización el estado suele estar repartido: el roadmap 
 
 ## Funcionalidades
 
-**Vista Portfolio**
-- KPIs: proyectos activos, proyectos con alerta roja y consumo total de horas.
-- Tabla con todos los proyectos: horas, barra de consumo, estado y alerta. Un clic en la fila abre el proyecto.
+**Vista Portfolio** (estado semanal de los proyectos activos)
+- Cuatro cards PMO: **Health** (atrasados / en atención / en plazo / sin fin planificado), **Hours** (proyectos sobre el estimado y horas de más), **Schedule** (proyectos que pasaron el fin de su roadmap y el peor desvío) y **To decide** (decisiones e issues abiertos).
+- Tabla de proyectos activos, ordenada por defecto 🔴 → 🟡 → 🟢, con:
+  - anillo de consumo;
+  - avance del roadmap con marca de consumo y etapa actual;
+  - badge de plazo;
+  - fin estimado con su desvío;
+  - alertas calculadas desde el RAID y las horas;
+  - un comentario semanal.
+- Un clic en la fila abre el proyecto. En modo Edit se pueden reordenar las filas (▲▼) y editar el comentario. **Export PNG** descarga la tabla con fecha, lista para un reporte de estado.
 
 **Tableros por cuenta** (uno por cuenta, con filtro por estado)
 - **Roadmap:** gantt con vista Día y Semana, línea de hoy, hitos, bloqueantes (días hábiles perdidos), marca de cierre y exportación a PNG.
@@ -44,6 +50,7 @@ En los proyectos de automatización el estado suele estar repartido: el roadmap 
 **Edición** (botón ✏️ Edit, abajo a la derecha)
 - Editor de roadmap: agregar, quitar y reordenar etapas, cambiar fechas, color y marca, y cargar bloqueantes, hitos y fecha de cierre. También se define el fin planificado; cambiarlo exige un motivo y cada cambio queda en un historial.
 - Edición de % de avance, comentarios, checklist de documentos y links. Los ítems del RAID se pueden agregar y editar siempre.
+- Portfolio: comentario semanal por proyecto y orden manual de filas.
 - Cada cambio se guarda en el momento. Solo se guardan los campos editables desde la interfaz; horas, roles y estados salen siempre del archivo de datos.
 
 **Otros**
@@ -74,7 +81,7 @@ La documentación detallada está en inglés:
 - **Sin login ni permisos.** Cualquiera que abra la página puede usar el modo Edit.
 - **Sin base de datos: solo almacenamiento del navegador.** Lo editado se guarda en el navegador de cada visitante (backend simulado) y no se comparte. Si se borran los datos del navegador, se pierde. Para compartir, conectá tu propia base de datos con autenticación (ver [Connecting your own database](docs/usage.md#connecting-your-own-database)).
 - **Las horas no se editan desde la interfaz.** Estimaciones, horas consumidas y roles se cargan en `data/projects.js`. No hay importación desde herramientas de carga de horas.
-- **La columna "Alert" y los estados se escriben a mano** en el archivo de datos; no se calculan.
+- **El estado de cada proyecto se escribe a mano** en el archivo de datos (alimenta el filtro por estado); los niveles de plazo y las alertas se calculan.
 - **Los roadmaps guardados tienen prioridad.** Una vez que se edita el roadmap de un proyecto desde la interfaz, los cambios posteriores a ese roadmap en el archivo de datos se ignoran hasta que se borre lo guardado.
 - **Un solo archivo, sin tests.** Está pensado para leerse y modificarse directamente, no como librería.
 - Los nombres de etapas, meses y días están en inglés; no hay capa de traducción.

@@ -17,11 +17,11 @@ const DEMO_LINKS = [
 
 const ACCOUNTS = [
   // ────────────────────────────────────────────
-  { id:'alborada', name:'Mercado Alborada', industry:'Supermarket chain', color:'#0D9488', projects:[
+  { id:'quintabel', name:'Quintabel', industry:'Supermarket chain', color:'#0D9488', projects:[
     {
-      id:'alborada-stock-sync', name:'Cross-system stock sync',
-      status:'In progress', statusClass:'b-info',
-      alert:'On budget · 51% burned', alertClass:'b-ok',
+      id:'quintabel-stock-sync', name:'Cross-system stock sync',
+      portfolioComment:'Build on track. Sync tested every 15 min in QA.',
+      status:'In progress',
       plannedEnd: D(36),
       roadmap: {
         stages: [
@@ -59,9 +59,9 @@ const ACCOUNTS = [
       ]}
     },
     {
-      id:'alborada-supplier-invoicing', name:'Supplier invoicing',
-      status:'Testing', statusClass:'b-violet',
-      alert:'1 role over budget · 90% burned', alertClass:'b-warn',
+      id:'quintabel-supplier-invoicing', name:'Supplier invoicing',
+      portfolioComment:'UAT round 2 this week. Duplicated supplier tax IDs still open on the client side.',
+      status:'Testing',
       plannedEnd: D(8),
       plannedEndHistory: [{ date:D(-30), previous:D(2), next:D(8), reason:'Credit-note matching approved as a change request' }],
       roadmap: {
@@ -100,9 +100,8 @@ const ACCOUNTS = [
       ]}
     },
     {
-      id:'alborada-returns', name:'Returns reconciliation', completed:true,
-      status:'Completed', statusClass:'b-ok',
-      alert:'Closed within budget', alertClass:'b-ok',
+      id:'quintabel-returns', name:'Returns reconciliation', completed:true,
+      status:'Completed',
       plannedEnd: D(-38),
       roadmap: {
         stages: [
@@ -136,11 +135,11 @@ const ACCOUNTS = [
     },
   ]},
   // ────────────────────────────────────────────
-  { id:'rutacargo', name:'Rutacargo', industry:'Logistics operator', color:'#4F46E5', projects:[
+  { id:'transmirel', name:'Transmirel', industry:'Logistics operator', color:'#4F46E5', projects:[
     {
-      id:'rutacargo-shipment-tracking', name:'Shipment tracking',
-      status:'In progress', statusClass:'b-info',
-      alert:'1 role over budget · 83% burned · open issue', alertClass:'b-danger',
+      id:'transmirel-shipment-tracking', name:'Shipment tracking',
+      portfolioComment:'Waiting for carrier API credentials. Escalated to the client sponsor.',
+      status:'In progress',
       plannedEnd: D(15),
       roadmap: {
         stages: [
@@ -154,7 +153,7 @@ const ACCOUNTS = [
       roleHours: [
         { role:'Project Manager',      analysis:{est:8,spent:9},   build:{est:18,spent:16},  test:{est:6,spent:0},  hypercare:{est:4,spent:0},  members:[{name:'Diego Achával',hours:25}] },
         { role:'Business Analyst',     analysis:{est:36,spent:40}, build:{est:14,spent:12},  test:{est:10,spent:0}, hypercare:{est:4,spent:0},  members:[{name:'Martina Olsen',hours:52}] },
-        { role:'Automation Developer', analysis:{est:4,spent:6},   build:{est:140,spent:176},test:{est:24,spent:0}, hypercare:{est:12,spent:0}, members:[{name:'Hernán Salvatierra',hours:120},{name:'Bruno Keller',hours:62}] },
+        { role:'Automation Developer', analysis:{est:4,spent:6},   build:{est:140,spent:240},test:{est:24,spent:0}, hypercare:{est:12,spent:0}, members:[{name:'Hernán Salvatierra',hours:160},{name:'Bruno Keller',hours:86}] },
         { role:'Tech Lead',            analysis:{est:4,spent:4},   build:{est:20,spent:24},  test:{est:4,spent:0},  hypercare:{est:2,spent:0},  members:[{name:'Paula Zárate',hours:28}] },
         { role:'QA Analyst',           analysis:{est:0,spent:0},   build:{est:4,spent:3},    test:{est:30,spent:0}, hypercare:{est:6,spent:0},  members:[{name:'Irene Castañeda',hours:3}] },
       ],
@@ -172,9 +171,9 @@ const ACCOUNTS = [
       ]}
     },
     {
-      id:'rutacargo-freight', name:'Freight settlement',
-      status:'Kick-off', statusClass:'b-gray',
-      alert:'Just started · 5% burned', alertClass:'b-ok',
+      id:'transmirel-freight', name:'Freight settlement',
+      portfolioComment:'Kick-off done. Planned end to be set after analysis.',
+      status:'Kick-off',
       roadmap: {
         stages: [
           { name:'Analysis',  start:D(-5), end:D(10), color:SC.analysis, current:true },
@@ -200,11 +199,11 @@ const ACCOUNTS = [
     },
   ]},
   // ────────────────────────────────────────────
-  { id:'vitrina', name:'Vitrina Once', industry:'E-commerce', color:'#DB2777', projects:[
+  { id:'pampaluz', name:'Pampaluz', industry:'E-commerce', color:'#DB2777', projects:[
     {
-      id:'vitrina-claims', name:'Customer claims handling',
-      status:'In progress', statusClass:'b-info',
-      alert:'1 role not estimated · 77% burned', alertClass:'b-warn',
+      id:'pampaluz-claims', name:'Customer claims handling',
+      portfolioComment:'Second change request approved (+6 d). Confirm new end date with the client.',
+      status:'In progress',
       plannedEnd: D(20),
       roadmap: {
         stages: [
@@ -236,9 +235,8 @@ const ACCOUNTS = [
       ]}
     },
     {
-      id:'vitrina-payments', name:'Marketplace payments reconciliation',
-      status:'In progress', statusClass:'b-info',
-      alert:'On budget · 45% burned', alertClass:'b-ok',
+      id:'pampaluz-payments', name:'Marketplace payments reconciliation',
+      status:'In progress',
       plannedEnd: D(38),
       roadmap: {
         stages: [
@@ -271,8 +269,7 @@ const ACCOUNTS = [
   { id:'circuito', name:'Circuito Sur', industry:'Electronics distributor', color:'#CA8A04', projects:[
     {
       id:'circuito-catalog', name:'Product catalog onboarding',
-      status:'In progress', statusClass:'b-info',
-      alert:'On budget · 13% burned', alertClass:'b-ok',
+      status:'In progress',
       plannedEnd: D(52),
       roadmap: {
         stages: [
@@ -302,8 +299,8 @@ const ACCOUNTS = [
     },
     {
       id:'circuito-warranty', name:'Manufacturer warranty claims',
-      status:'In progress', statusClass:'b-info',
-      alert:'Build blocked · 62% burned', alertClass:'b-danger',
+      portfolioComment:'Blocked by manufacturer portal access. Needs a decision on a manual workaround.',
+      status:'In progress',
       plannedEnd: D(25),
       roadmap: {
         stages: [
@@ -326,9 +323,10 @@ const ACCOUNTS = [
         C(-8, 'Portal access request sent to the manufacturer through the client.'),
       ],
       links: DEMO_LINKS,
-      raid: { nextSeq:3, items:[
+      raid: { nextSeq:4, items:[
         { id:'R-001', title:'Obtain manufacturer portal access', type:'Action', status:'Blocked', owner:'Client', due:D(-3) },
         { id:'R-002', title:'Manufacturer may change the claim form layout', type:'Risk', status:'Open', owner:'Delivery team', due:D(15) },
+        { id:'R-003', title:'Approve a manual workaround while portal access is pending', type:'Decision', status:'Open', owner:'Client', due:D(2) },
       ]}
     },
   ]},

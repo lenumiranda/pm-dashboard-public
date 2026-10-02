@@ -33,10 +33,8 @@ Each account gets a sidebar entry and a board. Nothing else needs to be register
 |---|---|---|---|
 | `id` | string | yes | Unique across all accounts. Saved edits are stored under this id. |
 | `name` | string | yes | |
-| `status` | string | yes | Free text, for example "In progress". Used by the status filter. |
-| `statusClass` | string | yes | Badge color: `b-info`, `b-ok`, `b-warn`, `b-danger`, `b-gray` or `b-violet`. |
-| `alert` | string | yes | Short summary for the portfolio table, written by hand. |
-| `alertClass` | string | yes | Badge color of the alert. `b-danger` counts toward "Need attention". |
+| `status` | string | yes | Free text, for example "In progress". Shown on the card and used by the status filter. |
+| `portfolioComment` | string | no | Weekly note shown in the Portfolio table. Editable from the UI. |
 | `completed` | boolean | no | `true` moves the card to "Completed projects" and sets the badge to Closed. |
 | `plannedEnd` | ISO date | no | Baseline end date. Without it the badge shows "No planned end". |
 | `plannedEndHistory` | array | no | `{ date, previous, next, reason }`. Written automatically by the roadmap editor. |
@@ -122,7 +120,7 @@ Stage keys, names and colors are defined once in `config.js` (`CONFIG.stages`). 
 ## After you change the data
 
 - **Hours, roles, names and statuses** update on the next reload.
-- **Fields saved from the UI** (`comments`, `roadmap`, `progress`, `docs`, `raid`, `links`, `plannedEnd`, `plannedEndHistory`): once a field has been edited in the browser, the saved value wins over the data file. To see the file values again, clear the saved data (see [usage.md](usage.md#storage)).
+- **Fields saved from the UI** (`comments`, `roadmap`, `progress`, `docs`, `raid`, `links`, `plannedEnd`, `plannedEndHistory`, `portfolioComment`): once a field has been edited in the browser, the saved value wins over the data file. To see the file values again, clear the saved data (see [usage.md](usage.md#storage)).
 
 ## Keep the data file free of sensitive content
 

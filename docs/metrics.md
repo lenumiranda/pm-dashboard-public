@@ -69,13 +69,29 @@ The variance card in the RAID section uses the same color thresholds.
 - **Overdue:** open items with a due date before today. Decisions are never overdue.
 - Open items are sorted with overdue ones first, then by due date. Items without a date go last.
 
-## Portfolio KPIs
+## Portfolio
 
-| KPI | Formula |
+The Portfolio only counts **active projects**: projects without `completed: true` whose schedule badge is not Closed. The cards and the table use the same set of projects.
+
+| Card | Number | Detail | Bar |
+|---|---|---|---|
+| Health | projects 🔴 Behind | how many are 🟡 At risk, 🟢 On track, and without a planned end (No planned end or No dates) | one segment per level |
+| Hours | projects whose spent hours exceed the estimate | the sum of hours above estimate across those projects | share of active projects |
+| Schedule | projects **past their roadmap end**: the current stage is the last one, its end date has passed, and it is not marked as done | the project with the largest positive variance vs planned end | share of active projects |
+| To decide | open Decisions + open Issues in the RAID logs | split by type, and how many projects have them | — |
+
+### Table columns
+
+| Column | What it shows |
 |---|---|
-| Active projects | projects without `completed: true` |
-| Need attention | projects whose `alertClass` is `b-danger`. This is set by hand in the data file. |
-| Hours burn | total spent / total estimated across all projects with an estimate |
+| Burn | Ring with hours burn %, colored with the `burn` thresholds, plus spent / estimate. |
+| Progress | Roadmap % (bar). The dark vertical mark shows hours burn on the same scale: a mark well to the right of the bar means hours are running ahead of time. Below it, the current stage: the last stage whose start date has passed. |
+| Schedule | The same badge as the project card. |
+| Est. end | Estimated end and the variance in days vs planned end, colored with the `schedule` thresholds. |
+| Alerts | Calculated: open issues, open decisions, roles over budget, and the hours left (amber from `burn.warnPct`) or the % over estimate. |
+| Comment | Free text written in Edit mode. |
+
+**Default order:** 🔴 Behind, 🟡 At risk, 🟢 On track, No planned end, No dates, then by account name. A manual order set with ▲▼ takes priority.
 
 ## Adjusting thresholds
 

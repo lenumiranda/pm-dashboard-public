@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-02
+
+### Added
+- Portfolio redesigned as a weekly status view: four PMO cards (Health, Hours, Schedule, To decide) and a table of active projects. The table shows burn ring, roadmap progress with burn marker and current stage, schedule badge, estimated end with variance, calculated alerts and a weekly comment.
+- Manual row order for the Portfolio (▲▼ in Edit mode) and PNG export of the table.
+- Social preview tags (Open Graph) and screenshots.
+
+### Changed
+- Portfolio alerts are calculated from the RAID log, roles and hours. The `statusClass`, `alert` and `alertClass` data fields were removed.
+- Demo accounts renamed so that no name matches a real company.
+
+### Fixed
+- Roadmap and progress table no longer overflow on narrow screens.
+- Hours column no longer wraps in the Portfolio.
+
 ## [1.0.0] - 2026-09-28
 
 ### Added

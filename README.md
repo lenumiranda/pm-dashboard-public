@@ -6,11 +6,10 @@ A single-page dashboard template for project managers who run automation project
 
 It runs as a static site: no build step, no backend and no install. The demo ships with **fictional data** (four made-up retail and logistics accounts, nine projects).
 
-> **Live demo:** _add your GitHub Pages link here_
->
-> ![Portfolio view](docs/screenshots/portfolio.png)
-> ![Project card](docs/screenshots/project-card.png)
-> _Screenshots: add them to `docs/screenshots/`._
+**Live demo:** https://lenumiranda.github.io/pm-dashboard-public/
+
+![Portfolio view](docs/screenshots/portfolio.png)
+![Project card](docs/screenshots/project-card.png)
 
 ## The problem it solves
 
@@ -27,9 +26,16 @@ In automation projects the status usually lives in several places: the roadmap i
 
 ## Features
 
-**Portfolio view**
-- KPIs: active projects, projects with a red alert, and total hours burn.
-- A table of all projects with hours, burn bar, status and alert. Click a row to open the project.
+**Portfolio view** (weekly status of active projects)
+- Four PMO cards: **Health** (behind / at risk / on track / no planned end), **Hours** (projects over estimate and extra hours), **Schedule** (projects past their roadmap end and the worst variance) and **To decide** (open decisions and issues).
+- A table of active projects, sorted 🔴 → 🟡 → 🟢 by default, with:
+  - a burn ring;
+  - roadmap progress with a burn marker and the current stage;
+  - the schedule badge;
+  - the estimated end with its variance;
+  - alerts calculated from the RAID log and hours;
+  - a weekly comment.
+- Click a row to open the project. In Edit mode you can reorder rows (▲▼) and edit the comment. **Export PNG** downloads the table, dated, for a status report.
 
 **Account boards** (one per account, with status filter chips)
 - **Roadmap:** a gantt chart with Day and Week views, today's line, milestones, blockers (lost working days), project close marker and PNG export.
@@ -44,6 +50,7 @@ In automation projects the status usually lives in several places: the roadmap i
 **Editing** (✏️ Edit button, bottom right)
 - Roadmap editor: add, remove and reorder stages, set dates, color and flag, and add blockers, milestones and close date. You can also set the planned end; changing it requires a reason, and each change is kept in a history.
 - Edit progress %, comments, docs checklist and links. RAID items can be added and edited at any time.
+- Portfolio: weekly comment per project and manual row order.
 - Every change is saved right away. Only UI-editable fields are saved; hours, roles and statuses always come from the data file.
 
 **Other**
@@ -72,7 +79,7 @@ To publish it, enable GitHub Pages on the repository (Settings → Pages → dep
 - **No login and no permissions.** Anyone who can open the page can use Edit mode.
 - **No database: browser storage only.** Edits are saved in the visitor's browser (mock backend) and are not shared. Clearing the browser data deletes them. To share edits, connect your own database with authentication (see [Connecting your own database](docs/usage.md#connecting-your-own-database)).
 - **Hours are not editable from the UI.** Estimates, spent hours and roles are edited in `data/projects.js`. There is no import from timesheet tools.
-- **The "Alert" column and statuses are written by hand** in the data file; they are not calculated.
+- **Project statuses are written by hand** in the data file (they drive the status filter); schedule levels and alerts are calculated.
 - **Saved roadmaps take priority.** Once a roadmap is edited from the UI, later changes to that project's roadmap in the data file are ignored until the saved data is cleared.
 - **Single file, no tests.** It is designed to be read and modified directly, not as a library.
 - Stage, month and day names are in English; there is no translation layer.
